@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<style>
+/* PinMeTo Recommendations Slide - 16:9 (720pt x 405pt) */
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  width: 720pt;
+  height: 405pt;
+  background: #FFFFFF;
+  font-family: 'Montserrat', Arial, Helvetica, sans-serif;
+  padding: 25pt 40pt;
+}
+
+.header {
+  border-bottom: 3pt solid #3399FF;
+  padding-bottom: 10pt;
+  margin-bottom: 20pt;
+}
+
+.header h1 {
+  color: #3399FF;
+  font-size: 24pt;
+  font-weight: 700;
+}
+
+.recommendations {
+  display: flex;
+  flex-direction: column;
+  gap: 20pt;
+}
+
+.recommendation {
+  display: flex;
+  gap: 15pt;
+  align-items: flex-start;
+}
+
+.rec-number {
+  width: 30pt;
+  height: 30pt;
+  background: #FF8854;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #FFFFFF;
+  font-size: 16pt;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.rec-content {
+  flex: 1;
+}
+
+.rec-title {
+  color: #001334;
+  font-size: 14pt;
+  font-weight: 700;
+  margin-bottom: 5pt;
+}
+
+.rec-description {
+  color: #333333;
+  font-size: 11pt;
+  line-height: 1.4;
+  margin-bottom: 8pt;
+}
+
+.rec-impact {
+  display: inline-flex;
+  align-items: center;
+  gap: 5pt;
+  background: #F2F3F4;
+  padding: 5pt 10pt;
+  border-radius: 3pt;
+  border-left: 3pt solid #3399FF;
+}
+
+.rec-impact-label {
+  color: #333333;
+  font-size: 9pt;
+}
+
+.rec-impact-value {
+  color: #3399FF;
+  font-size: 10pt;
+  font-weight: 600;
+}
+
+.priority-tag {
+  display: inline-block;
+  padding: 2pt 8pt;
+  border-radius: 3pt;
+  font-size: 8pt;
+  font-weight: 600;
+  margin-left: 10pt;
+}
+
+.priority-high {
+  background: #FF8854;
+  color: #FFFFFF;
+}
+
+.priority-medium {
+  background: #3399FF;
+  color: #FFFFFF;
+}
+
+.priority-low {
+  background: #bbd9fa;
+  color: #001334;
+}
+
+.footer {
+  position: absolute;
+  bottom: 15pt;
+  left: 40pt;
+  right: 40pt;
+  display: flex;
+  justify-content: space-between;
+  color: #333333;
+  font-size: 8pt;
+}
+
+.cta-box {
+  position: absolute;
+  bottom: 50pt;
+  right: 40pt;
+  background: linear-gradient(135deg, #001334 0%, #002255 100%);
+  padding: 15pt 20pt;
+  border-radius: 5pt;
+  color: #FFFFFF;
+  max-width: 200pt;
+}
+
+.cta-title {
+  font-size: 11pt;
+  font-weight: 600;
+  margin-bottom: 5pt;
+}
+
+.cta-text {
+  font-size: 9pt;
+  color: #bbd9fa;
+}
+</style>
+</head>
+<body>
+  <div class="header">
+    <h1>Strategic Recommendations</h1>
+  </div>
+
+  <div class="recommendations">
+    <div class="recommendation">
+      <div class="rec-number">1</div>
+      <div class="rec-content">
+        <div class="rec-title">
+          [REC_1_TITLE]
+          <span class="priority-tag [REC_1_PRIORITY_CLASS]">[REC_1_PRIORITY]</span>
+        </div>
+        <div class="rec-description">[REC_1_DESCRIPTION]</div>
+        <div class="rec-impact">
+          <span class="rec-impact-label">Expected Impact:</span>
+          <span class="rec-impact-value">[REC_1_IMPACT]</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="recommendation">
+      <div class="rec-number">2</div>
+      <div class="rec-content">
+        <div class="rec-title">
+          [REC_2_TITLE]
+          <span class="priority-tag [REC_2_PRIORITY_CLASS]">[REC_2_PRIORITY]</span>
+        </div>
+        <div class="rec-description">[REC_2_DESCRIPTION]</div>
+        <div class="rec-impact">
+          <span class="rec-impact-label">Expected Impact:</span>
+          <span class="rec-impact-value">[REC_2_IMPACT]</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="recommendation">
+      <div class="rec-number">3</div>
+      <div class="rec-content">
+        <div class="rec-title">
+          [REC_3_TITLE]
+          <span class="priority-tag [REC_3_PRIORITY_CLASS]">[REC_3_PRIORITY]</span>
+        </div>
+        <div class="rec-description">[REC_3_DESCRIPTION]</div>
+        <div class="rec-impact">
+          <span class="rec-impact-label">Expected Impact:</span>
+          <span class="rec-impact-value">[REC_3_IMPACT]</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="cta-box">
+    <div class="cta-title">Next Steps</div>
+    <div class="cta-text">Review and prioritize these recommendations with your team.</div>
+  </div>
+
+  <div class="footer">
+    <span>PinMeTo Location Analytics</span>
+    <span>[PAGE_NUMBER]</span>
+  </div>
+</body>
+</html>

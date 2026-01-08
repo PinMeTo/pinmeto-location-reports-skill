@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<style>
+/* PinMeTo Title Slide Template - 16:9 (720pt x 405pt) */
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  width: 720pt;
+  height: 405pt;
+  background: linear-gradient(135deg, #001334 0%, #002255 100%);
+  font-family: 'Montserrat', Arial, Helvetica, sans-serif;
+  display: flex;
+  flex-direction: column;
+  padding: 30pt;
+  position: relative;
+}
+
+.logo {
+  position: absolute;
+  top: 30pt;
+  left: 40pt;
+  width: 120pt;
+  height: auto;
+}
+
+.content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding-left: 20pt;
+}
+
+.title {
+  color: #FFFFFF;
+  font-size: 42pt;
+  font-weight: 700;
+  line-height: 1.2;
+  margin-bottom: 20pt;
+}
+
+.subtitle {
+  color: #3399FF;
+  font-size: 24pt;
+  font-weight: 600;
+  margin-bottom: 15pt;
+}
+
+.date-range {
+  color: #bbd9fa;
+  font-size: 16pt;
+  font-weight: 400;
+}
+
+.footer {
+  position: absolute;
+  bottom: 25pt;
+  left: 40pt;
+  color: #bbd9fa;
+  font-size: 10pt;
+}
+
+.accent-line {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 5pt;
+  background: #FF8854;
+}
+</style>
+</head>
+<body>
+  <img class="logo" src="../logos/PinMeTo_Logo_Landscape.svg" alt="PinMeTo">
+
+  <div class="content">
+    <h1 class="title">[REPORT_TITLE]</h1>
+    <h2 class="subtitle">[PERIOD]</h2>
+    <p class="date-range">[DATE_RANGE]</p>
+  </div>
+
+  <div class="footer">
+    Generated: [DATE] | Confidential
+  </div>
+
+  <div class="accent-line"></div>
+</body>
+</html>

@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<style>
+/* PinMeTo Executive Summary Slide - 16:9 (720pt x 405pt) */
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  width: 720pt;
+  height: 405pt;
+  background: #FFFFFF;
+  font-family: 'Montserrat', Arial, Helvetica, sans-serif;
+  padding: 25pt 40pt;
+}
+
+.header {
+  border-bottom: 3pt solid #3399FF;
+  padding-bottom: 10pt;
+  margin-bottom: 20pt;
+}
+
+.header h1 {
+  color: #3399FF;
+  font-size: 24pt;
+  font-weight: 700;
+}
+
+.content {
+  display: flex;
+  gap: 30pt;
+}
+
+.left-column {
+  flex: 1;
+}
+
+.right-column {
+  flex: 1;
+}
+
+.section-title {
+  color: #001334;
+  font-size: 14pt;
+  font-weight: 700;
+  margin-bottom: 12pt;
+  padding-bottom: 5pt;
+  border-bottom: 1pt solid #bbd9fa;
+}
+
+.highlights {
+  list-style: none;
+}
+
+.highlights li {
+  color: #333333;
+  font-size: 11pt;
+  line-height: 1.5;
+  margin-bottom: 10pt;
+  padding-left: 15pt;
+  position: relative;
+}
+
+.highlights li::before {
+  content: "•";
+  color: #FF8854;
+  font-size: 14pt;
+  position: absolute;
+  left: 0;
+  top: -2pt;
+}
+
+.kpi-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12pt;
+}
+
+.kpi-box {
+  background: #F2F3F4;
+  border: 1pt solid #bbd9fa;
+  border-radius: 5pt;
+  padding: 12pt;
+  text-align: center;
+}
+
+.kpi-value {
+  color: #3399FF;
+  font-size: 22pt;
+  font-weight: 700;
+  margin-bottom: 5pt;
+}
+
+.kpi-label {
+  color: #333333;
+  font-size: 9pt;
+  margin-bottom: 3pt;
+}
+
+.kpi-change {
+  font-size: 10pt;
+  font-weight: 600;
+}
+
+.kpi-change.positive { color: #27ae60; }
+.kpi-change.negative { color: #FF8854; }
+
+.footer {
+  position: absolute;
+  bottom: 15pt;
+  left: 40pt;
+  right: 40pt;
+  display: flex;
+  justify-content: space-between;
+  color: #333333;
+  font-size: 8pt;
+}
+</style>
+</head>
+<body>
+  <div class="header">
+    <h1>Executive Summary</h1>
+  </div>
+
+  <div class="content">
+    <div class="left-column">
+      <h2 class="section-title">Key Highlights</h2>
+      <ul class="highlights">
+        <li>[HIGHLIGHT_1]</li>
+        <li>[HIGHLIGHT_2]</li>
+        <li>[HIGHLIGHT_3]</li>
+        <li>[HIGHLIGHT_4]</li>
+      </ul>
+    </div>
+
+    <div class="right-column">
+      <h2 class="section-title">Performance Metrics</h2>
+      <div class="kpi-grid">
+        <div class="kpi-box">
+          <div class="kpi-value">[KPI_1_VALUE]</div>
+          <div class="kpi-label">[KPI_1_LABEL]</div>
+          <div class="kpi-change [KPI_1_CLASS]">[KPI_1_CHANGE]</div>
+        </div>
+        <div class="kpi-box">
+          <div class="kpi-value">[KPI_2_VALUE]</div>
+          <div class="kpi-label">[KPI_2_LABEL]</div>
+          <div class="kpi-change [KPI_2_CLASS]">[KPI_2_CHANGE]</div>
+        </div>
+        <div class="kpi-box">
+          <div class="kpi-value">[KPI_3_VALUE]</div>
+          <div class="kpi-label">[KPI_3_LABEL]</div>
+          <div class="kpi-change [KPI_3_CLASS]">[KPI_3_CHANGE]</div>
+        </div>
+        <div class="kpi-box">
+          <div class="kpi-value">[KPI_4_VALUE]</div>
+          <div class="kpi-label">[KPI_4_LABEL]</div>
+          <div class="kpi-change [KPI_4_CLASS]">[KPI_4_CHANGE]</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer">
+    <span>PinMeTo Location Analytics</span>
+    <span>[PAGE_NUMBER]</span>
+  </div>
+</body>
+</html>
