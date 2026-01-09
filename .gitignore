@@ -1,2 +1,15 @@
 # bv (beads viewer) local config and caches
 .bv/
+
+# Dependencies
+node_modules/
+
+# Generated test reports
+*.pdf
+*.pptx
+
+# Fetched data files
+pinmeto_*_data.json
+
+# macOS
+.DS_Store
