@@ -187,9 +187,20 @@ Read the appropriate reference file for report structure:
 - Half-Yearly: `references/half-yearly.md`
 - Yearly: `references/yearly.md`
 
-**For PDF:** Use `scripts/generate_pdf.py` patterns or generate with reportlab directly.
+**CRITICAL: Use the bundled scripts. Do NOT create your own generation scripts.**
 
-**For PPTX:** Use `scripts/generate_pptx.js` with PptxGenJS. Run: `node scripts/generate_pptx.js --data report_data.json --output report.pptx --period [quarterly|monthly|half-yearly|yearly]`
+#### For PDF:
+1. Read `scripts/generate_pdf.py` from this skill
+2. Copy the script content to your working directory as `generate_pdf.py`
+3. Run: `python generate_pdf.py --data report_data.json --output report.pdf --period [period]`
+
+#### For PPTX:
+1. Read `scripts/generate_pptx.py` from this skill
+2. Copy the script content to your working directory as `generate_pptx.py`
+3. Install dependencies: `pip install python-pptx pillow matplotlib`
+4. Run: `python generate_pptx.py --data report_data.json --output report.pptx --period [period]`
+
+The `[period]` parameter accepts: `monthly`, `quarterly`, `half-yearly`, or `yearly`.
 
 ### Step 7: Quality Check
 

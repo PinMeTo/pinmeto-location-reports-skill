@@ -16,7 +16,7 @@ pinmeto-location-analytics-skill/
 │   ├── SKILL.md                      # Skill definition (triggers, workflow, branding)
 │   ├── scripts/
 │   │   ├── generate_pdf.py           # ReportLab-based PDF generation
-│   │   ├── generate_pptx.js          # PptxGenJS-based PowerPoint generation
+│   │   ├── generate_pptx.py           # python-pptx-based PowerPoint generation
 │   │   └── fetch_pinmeto_data.js     # MCP client for fetching real data
 │   ├── references/                   # Period-specific report structures
 │   └── assets/                       # Logos and HTML templates
@@ -37,8 +37,8 @@ python scripts/generate_pdf.py --data report_data.json --output report.pdf --per
 ### PPTX Generation
 ```bash
 cd pinmeto-location-reports
-npm install
-node scripts/generate_pptx.js --data report_data.json --output report.pptx --period quarterly
+pip install python-pptx pillow
+python scripts/generate_pptx.py --data report_data.json --output report.pptx --period quarterly
 ```
 
 ### Fetch Real Data from PinMeTo MCP
