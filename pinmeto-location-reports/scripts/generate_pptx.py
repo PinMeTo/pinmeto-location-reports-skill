@@ -492,7 +492,14 @@ def create_metrics_slide(prs, title, metrics_data, period_info):
     chart_data = metrics_data.get("chartData", [])
     if chart_data:
         has_prior = any(d.get('priorValue') is not None for d in chart_data)
-        chart_title = f"{current_period} vs {prior_year_period}" if has_prior else "Monthly Trend"
+        # Determine chart title based on platform's primary metric
+        metric_titles = {
+            "Google Business Profile": "Profile Views",
+            "Facebook Performance": "Page Engagement",
+            "Apple Maps Performance": "Discovery Views"
+        }
+        metric_name = metric_titles.get(title, "Monthly Activity")
+        chart_title = f"{metric_name} - {current_period} vs {prior_year_period}" if has_prior else f"{metric_name} - Monthly Trend"
         chart_image = generate_bar_chart_image(chart_data, chart_title, has_prior,
                                                 current_label=current_period,
                                                 prior_label=prior_year_period)
