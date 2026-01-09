@@ -23,7 +23,7 @@ from pathlib import Path
 
 from pptx import Presentation
 from pptx.util import Inches, Pt
-from pptx.dml.color import RgbColor
+from pptx.dml.color import RGBColor
 from pptx.enum.text import PP_ALIGN, MSO_ANCHOR
 from pptx.enum.shapes import MSO_SHAPE
 from pptx.oxml.ns import nsmap
@@ -49,14 +49,14 @@ DEFAULT_LOGO = ASSETS_DIR / "logos" / "PinMeTo_Logo_Landscape.jpg"
 # =============================================================================
 class Brand:
     # Colors (RGB tuples)
-    BLUE = RgbColor(0x33, 0x99, 0xFF)
-    ORANGE = RgbColor(0xFF, 0x88, 0x54)
-    BLUE_MARINE = RgbColor(0x00, 0x13, 0x34)
-    LIGHT_BLUE = RgbColor(0xBB, 0xD9, 0xFA)
-    GREY = RgbColor(0xF2, 0xF3, 0xF4)
-    MID_GREY = RgbColor(0x33, 0x33, 0x33)
-    WHITE = RgbColor(0xFF, 0xFF, 0xFF)
-    GREEN = RgbColor(0x27, 0xAE, 0x60)
+    BLUE = RGBColor(0x33, 0x99, 0xFF)
+    ORANGE = RGBColor(0xFF, 0x88, 0x54)
+    BLUE_MARINE = RGBColor(0x00, 0x13, 0x34)
+    LIGHT_BLUE = RGBColor(0xBB, 0xD9, 0xFA)
+    GREY = RGBColor(0xF2, 0xF3, 0xF4)
+    MID_GREY = RGBColor(0x33, 0x33, 0x33)
+    WHITE = RGBColor(0xFF, 0xFF, 0xFF)
+    GREEN = RGBColor(0x27, 0xAE, 0x60)
 
     # Font names
     HEADING_FONT = "Arial"
