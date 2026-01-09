@@ -34,6 +34,7 @@ from reportlab.platypus import (
     BaseDocTemplate,
     Frame,
     Image,
+    KeepTogether,
     PageBreak,
     PageTemplate,
     Paragraph,
@@ -312,6 +313,61 @@ def create_pie_chart(data: list[dict], width=300, height=200) -> Drawing:
 
 
 # =============================================================================
+# Runtime Validation
+# =============================================================================
+def validate_report_data(data: dict) -> list[str]:
+    """
+    Validate report data structure and return warnings for missing required fields.
+    Prints warnings but allows generation to continue with partial data.
+    """
+    warnings = []
+
+    # Check top-level required fields
+    required_top_level = ['companyName', 'title', 'period']
+    for field in required_top_level:
+        if not data.get(field):
+            warnings.append(f"Missing required field: {field}")
+
+    # Validate KPIs
+    kpis = data.get('kpis', [])
+    for i, kpi in enumerate(kpis):
+        if not kpi.get('name'):
+            warnings.append(f"KPI #{i+1}: missing 'name' field (value: {kpi.get('value', 'N/A')})")
+
+    # Validate platform metrics
+    for platform in ['google', 'facebook', 'apple']:
+        platform_data = data.get(platform, {})
+        metrics = platform_data.get('metrics', [])
+        for i, metric in enumerate(metrics):
+            if not metric.get('name'):
+                warnings.append(f"{platform.title()} metric #{i+1}: missing 'name' field (value: {metric.get('value', 'N/A')})")
+
+    # Validate keywords
+    keywords_data = data.get('keywords', {})
+    top_keywords = keywords_data.get('topKeywords', []) or keywords_data.get('top_keywords', [])
+    for i, kw in enumerate(top_keywords):
+        if not kw.get('keyword'):
+            warnings.append(f"Keyword #{i+1}: missing 'keyword' field")
+
+    # Validate review themes
+    reviews_data = data.get('reviews', {})
+    themes = reviews_data.get('topThemes', [])
+    for i, theme in enumerate(themes):
+        if not theme.get('theme'):
+            warnings.append(f"Review theme #{i+1}: missing 'theme' field")
+
+    # Print warnings
+    if warnings:
+        print("\n⚠️  Data Validation Warnings:")
+        print("   The following fields are missing or empty. Report will generate with blanks.")
+        for warning in warnings:
+            print(f"   • {warning}")
+        print()
+
+    return warnings
+
+
+# =============================================================================
 # Page Templates
 # =============================================================================
 def header_footer(canvas, doc, report_title: str, logo_path: str = None, company_name: str = None, period_info: dict = None):
@@ -537,14 +593,16 @@ def create_keywords_section(data: dict, styles) -> list:
         table.setStyle(get_data_table_style())
         elements.append(table)
 
-    # Category distribution
+    # Category distribution - wrap header and chart together to prevent orphaning
     categories = keywords_data.get('categoryDistribution', []) or keywords_data.get('category_distribution', [])
     if categories:
         elements.append(Spacer(1, 40))
-        elements.append(Paragraph("Category Distribution", styles['PinMeToH2']))
-        elements.append(Spacer(1, 10))
-        chart = create_pie_chart(categories)
-        elements.append(chart)
+        category_section = [
+            Paragraph("Category Distribution", styles['PinMeToH2']),
+            Spacer(1, 10),
+            create_pie_chart(categories)
+        ]
+        elements.append(KeepTogether(category_section))
 
     elements.append(PageBreak())
     return elements
@@ -586,11 +644,9 @@ def create_reviews_section(data: dict, styles) -> list:
         elements.append(chart)
         elements.append(Spacer(1, 30))
 
-    # Top themes table
+    # Top themes table - wrap header and table together to prevent orphaning
     themes = reviews_data.get('topThemes', [])
     if themes:
-        elements.append(Paragraph("Top Review Themes", styles['PinMeToH2']))
-        elements.append(Spacer(1, 10))
         table_data = [['Theme', 'Mentions', 'Sentiment']]
         for theme in themes:
             table_data.append([
@@ -600,7 +656,12 @@ def create_reviews_section(data: dict, styles) -> list:
             ])
         table = Table(table_data, colWidths=[150, 80, 100])
         table.setStyle(get_data_table_style())
-        elements.append(table)
+        themes_section = [
+            Paragraph("Top Review Themes", styles['PinMeToH2']),
+            Spacer(1, 10),
+            table
+        ]
+        elements.append(KeepTogether(themes_section))
 
     elements.append(PageBreak())
     return elements
@@ -617,17 +678,21 @@ def create_recommendations_section(data: dict, styles) -> list:
     elements.append(Paragraph("Strategic Recommendations", styles['PinMeToH1']))
 
     for i, rec in enumerate(recommendations, 1):
-        elements.append(Paragraph(
-            f"<b>{i}. {rec.get('title', '')}</b>",
-            styles['PinMeToH2']
-        ))
-        elements.append(Paragraph(rec.get('description', ''), styles['PinMeToBody']))
+        # Wrap each recommendation to keep title, description, and impact together
+        rec_elements = [
+            Paragraph(
+                f"<b>{i}. {rec.get('title', '')}</b>",
+                styles['PinMeToH2']
+            ),
+            Paragraph(rec.get('description', ''), styles['PinMeToBody'])
+        ]
 
         impact = rec.get('impact', '')
         if impact:
-            elements.append(Paragraph(f"<i>Expected Impact: {impact}</i>", styles['PinMeToBody']))
+            rec_elements.append(Paragraph(f"<i>Expected Impact: {impact}</i>", styles['PinMeToBody']))
 
-        elements.append(Spacer(1, 10))
+        rec_elements.append(Spacer(1, 10))
+        elements.append(KeepTogether(rec_elements))
 
     return elements
 
@@ -644,6 +709,9 @@ def generate_report(data: dict, output_path: str, logo_path: str = None):
         output_path: Path to save the PDF
         logo_path: Optional path to logo image (uses default if not provided)
     """
+    # Validate data and print warnings for missing fields
+    validate_report_data(data)
+
     # Use default logo if not provided
     if logo_path is None and DEFAULT_LOGO.exists():
         logo_path = str(DEFAULT_LOGO)

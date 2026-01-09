@@ -11,17 +11,31 @@
 
 ## MCP Data Fetching Sequence
 
+**IMPORTANT:** All MCP tools require `from` and `to` date parameters.
+
+**DEFAULT:** Use `compare_with="prior_year"` (YoY) unless user specifically requests MoM comparison.
+
+For December 2025: `from: "2025-12-01"`, `to: "2025-12-31"`
+
 ```
 1. pinmeto_get_locations(fields=["store_id", "name", "city", "country"])
-2. pinmeto_get_google_insights(aggregation="monthly", comparison_type="prior_period")
-3. pinmeto_get_google_insights(aggregation="monthly", comparison_type="prior_year")
-4. pinmeto_get_google_ratings(aggregation="monthly")
-5. pinmeto_get_google_keywords(limit=10)
-6. pinmeto_get_google_reviews(limit=30)
-7. pinmeto_get_facebook_insights(aggregation="monthly", comparison_type="prior_period")
-8. pinmeto_get_facebook_ratings(aggregation="monthly")
-9. pinmeto_get_apple_insights(aggregation="monthly")
+
+2. pinmeto_get_google_insights(from="2025-12-01", to="2025-12-31", aggregation="monthly", compare_with="prior_year")
+
+3. pinmeto_get_google_ratings(from="2025-12-01", to="2025-12-31", aggregation="monthly")
+
+4. pinmeto_get_google_keywords(from="2025-12-01", to="2025-12-31", limit=10)
+
+5. pinmeto_get_google_reviews(from="2025-12-01", to="2025-12-31", limit=30)
+
+6. pinmeto_get_facebook_insights(from="2025-12-01", to="2025-12-31", aggregation="monthly", compare_with="prior_year")
+
+7. pinmeto_get_facebook_ratings(from="2025-12-01", to="2025-12-31", aggregation="monthly")
+
+8. pinmeto_get_apple_insights(from="2025-12-01", to="2025-12-31", aggregation="monthly")
 ```
+
+**Note:** Only add a second call with `compare_with="prior_period"` if user explicitly requests MoM comparison.
 
 ## Report Structure
 

@@ -1,12 +1,6 @@
 ---
 name: pinmeto-location-reports
-description: Generates professional PDF and PowerPoint reports from PinMeTo location analytics data. Use when requesting location performance reports, Google Business insights, Facebook metrics, Apple Maps analytics, keyword analysis, or executive summaries for multi-location brands. Supports monthly, quarterly, half-yearly, and yearly formats.
-allowed-tools:
-  - Read
-  - Glob
-  - Bash(python:*)
-  - Bash(node:*)
-  - Write
+description: "Generates professional PDF and PowerPoint reports from PinMeTo location analytics data. Use when requesting location performance reports, Google Business insights, Facebook metrics, Apple Maps analytics, keyword analysis, or executive summaries for multi-location brands."
 ---
 
 # PinMeTo Location Analytics Reports
@@ -17,9 +11,66 @@ Generate professional, board-ready performance reports for enterprise multi-loca
 
 1. Confirm PinMeTo MCP server is connected
 2. Parse user request for period type and date range
-3. Validate dates (Google has ~10-day data lag)
-4. Fetch data using MCP tools
+3. **Calculate `from` and `to` dates** (see Date Range Calculation below)
+4. Fetch data using MCP tools - **ALWAYS include `from` and `to` parameters**
 5. Generate PDF and/or PPTX output with PinMeTo branding
+
+---
+
+## ⚠️ CRITICAL: Required MCP Parameters
+
+**ALL PinMeTo MCP tools require `from` and `to` date parameters. The server will reject calls without them.**
+
+Every MCP tool call MUST include:
+```json
+{
+  "from": "YYYY-MM-DD",
+  "to": "YYYY-MM-DD"
+}
+```
+
+**Example - Q4 2025 report:**
+```json
+pinmeto_get_google_insights({
+  "from": "2025-10-01",
+  "to": "2025-12-31",
+  "aggregation": "quarterly",
+  "compare_with": "prior_year"
+})
+
+pinmeto_get_google_ratings({
+  "from": "2025-10-01",
+  "to": "2025-12-31",
+  "aggregation": "quarterly"
+})
+
+pinmeto_get_facebook_insights({
+  "from": "2025-10-01",
+  "to": "2025-12-31",
+  "aggregation": "quarterly",
+  "compare_with": "prior_year"
+})
+```
+
+### Default Comparison Period
+
+**Default to Year-over-Year (YoY) comparisons unless the user specifically requests otherwise.**
+
+| User Request | Use `compare_with` |
+|--------------|-------------------|
+| "Q4 2025 report" (no comparison specified) | `"prior_year"` (YoY) |
+| "Q4 2025 vs Q4 2024" | `"prior_year"` (YoY) |
+| "Q4 2025 vs Q3 2025" or "QoQ comparison" | `"prior_period"` (QoQ) |
+| "Compare to last month" or "MoM" | `"prior_period"` |
+
+YoY comparisons are more meaningful for business reporting as they account for seasonality.
+
+**Before EVERY MCP tool call, verify:**
+- [ ] `from` parameter is set to start date (e.g., "2025-10-01")
+- [ ] `to` parameter is set to end date (e.g., "2025-12-31")
+- [ ] Both are strings in "YYYY-MM-DD" format
+
+---
 
 ## Period Detection
 
@@ -34,21 +85,31 @@ Parse natural language to determine report type:
 
 ### Date Range Calculation
 
+Calculate `from` and `to` dates based on the period type. **Use these as the `from` and `to` parameters in ALL MCP calls.**
+
 ```python
 # Monthly: First to last day of month
-start = "2024-10-01", end = "2024-10-31"
+# October 2024:
+from = "2024-10-01"
+to = "2024-10-31"
 
 # Quarterly: Q1=Jan-Mar, Q2=Apr-Jun, Q3=Jul-Sep, Q4=Oct-Dec
-# Q3 2024:
-start = "2024-07-01", end = "2024-09-30"
+# Q4 2025:
+from = "2025-10-01"
+to = "2025-12-31"
 
 # Half-Yearly: H1=Jan-Jun, H2=Jul-Dec
-# H1 2024:
-start = "2024-01-01", end = "2024-06-30"
+# H2 2025:
+from = "2025-07-01"
+to = "2025-12-31"
 
 # Yearly: Full calendar year
-start = "2024-01-01", end = "2024-12-31"
+# 2025:
+from = "2025-01-01"
+to = "2025-12-31"
 ```
+
+**Store these dates at the start and use them for EVERY MCP tool call.**
 
 ## Report Generation Workflow
 
@@ -69,7 +130,27 @@ See [references/workflow-details.md](references/workflow-details.md) for detaile
 - Facebook metrics: `pinmeto_get_facebook_insights`, `pinmeto_get_facebook_brandpage_insights`, `pinmeto_get_facebook_ratings`
 - Apple Maps: `pinmeto_get_apple_insights`
 
-**Key tip:** Call Google/Facebook insights twice (once with `prior_period`, once with `prior_year`) to get both comparison sets.
+**CRITICAL - Required Parameters for ALL MCP Tools:**
+
+```
+from: "YYYY-MM-DD"   # Start date (REQUIRED - never omit)
+to: "YYYY-MM-DD"     # End date (REQUIRED - never omit)
+```
+
+Example for Q4 2025:
+```json
+{
+  "from": "2025-10-01",
+  "to": "2025-12-31",
+  "aggregation": "quarterly",
+  "compare_with": "prior_period"
+}
+```
+
+**Key tips:**
+- Always include both `from` and `to` dates - the MCP server will reject calls with missing dates
+- Use `compare_with` (not `comparison_type`) for comparison data
+- Call insights twice: once with `compare_with: "prior_period"`, once with `compare_with: "prior_year"`
 
 ### Step 5: Process & Analyze Data
 
@@ -113,6 +194,103 @@ Read the appropriate reference file for report structure:
 ### Step 7: Quality Check
 
 Run through `references/qa-checklist.md` before delivering.
+
+## Data Schema for Report Generation
+
+The PDF/PPTX generators expect data in this exact structure. **Field names must match exactly (camelCase).**
+
+### Required Top-Level Fields
+
+```json
+{
+  "companyName": "Brand Name",
+  "title": "Location Analytics Report",
+  "period": "Q4 2025",
+  "priorPeriod": "Q3 2025",
+  "dateRange": "October 1 - December 31, 2025",
+  "priorDateRange": "July 1 - September 30, 2025"
+}
+```
+
+### KPIs Array
+
+Each KPI **must** have a `name` field:
+
+```json
+"kpis": [
+  {"name": "Total Views", "value": "6,685", "change": "+15% YoY"},
+  {"name": "Customer Actions", "value": "1,531", "change": "+12%"},
+  {"name": "Average Rating", "value": "3.2", "change": "No change"},
+  {"name": "Total Reviews", "value": "4", "change": "+2"}
+]
+```
+
+### Platform Metrics (google, facebook, apple)
+
+Each metric **must** have `name`, `value`, `periodChange`, and `yearChange`:
+
+```json
+"google": {
+  "metrics": [
+    {"name": "Total Views", "value": 4200, "periodChange": "+8%", "yearChange": "+15%"},
+    {"name": "Search Impressions", "value": 831, "periodChange": "+5%", "yearChange": "+18%"},
+    {"name": "Website Clicks", "value": 189, "periodChange": "+12%", "yearChange": "+22%"}
+  ],
+  "chartData": [
+    {"label": "Oct 2025", "value": 2500, "priorValue": 2300},
+    {"label": "Nov 2025", "value": 2200, "priorValue": 2100}
+  ]
+}
+```
+
+### Keywords
+
+```json
+"keywords": {
+  "topKeywords": [
+    {"keyword": "brand name", "impressions": 1973, "category": "Branded"},
+    {"keyword": "service type", "impressions": 201, "category": "Discovery"}
+  ],
+  "categoryDistribution": [
+    {"label": "Branded", "value": 85},
+    {"label": "Discovery", "value": 12},
+    {"label": "Navigational", "value": 3}
+  ]
+}
+```
+
+### Reviews
+
+```json
+"reviews": {
+  "totalReviews": 4,
+  "averageRating": 3.2,
+  "ratingChange": "No change",
+  "sentiment": {
+    "positive": 50,
+    "neutral": 25,
+    "negative": 25
+  },
+  "topThemes": [
+    {"theme": "Service quality", "mentions": 2, "sentiment": "positive"},
+    {"theme": "Wait times", "mentions": 1, "sentiment": "negative"}
+  ]
+}
+```
+
+### Recommendations
+
+```json
+"recommendations": [
+  {
+    "title": "Improve Review Response Rate",
+    "description": "Respond to all reviews within 24 hours to show customer engagement.",
+    "impact": "Expected 10-15% improvement in customer satisfaction"
+  }
+]
+```
+
+**Critical:** If `name` field is missing from metrics, the table will show blank labels. If `periodChange`/`yearChange` are missing, columns will show "N/A".
 
 ## Brand Guidelines
 

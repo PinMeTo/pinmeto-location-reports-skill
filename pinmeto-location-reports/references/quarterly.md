@@ -11,19 +11,35 @@
 
 ## MCP Data Fetching Sequence
 
+**IMPORTANT:** All MCP tools require `from` and `to` date parameters.
+
+**DEFAULT:** Use `compare_with="prior_year"` (YoY) unless user specifically requests QoQ comparison.
+
+For Q4 2025: `from: "2025-10-01"`, `to: "2025-12-31"`
+
 ```
 1. pinmeto_get_locations(fields=["store_id", "name", "city", "country", "region"])
-2. pinmeto_get_google_insights(aggregation="quarterly", comparison_type="prior_period")
-3. pinmeto_get_google_insights(aggregation="quarterly", comparison_type="prior_year")
-4. pinmeto_get_google_insights(aggregation="monthly") // For monthly trends within quarter
-5. pinmeto_get_google_ratings(aggregation="quarterly")
-6. pinmeto_get_google_keywords(limit=15)
-7. pinmeto_get_google_reviews(limit=50)
-8. pinmeto_get_facebook_insights(aggregation="quarterly", comparison_type="prior_period")
-9. pinmeto_get_facebook_brandpage_insights()
-10. pinmeto_get_facebook_ratings(aggregation="quarterly")
-11. pinmeto_get_apple_insights(aggregation="quarterly")
+
+2. pinmeto_get_google_insights(from="2025-10-01", to="2025-12-31", aggregation="quarterly", compare_with="prior_year")
+
+3. pinmeto_get_google_insights(from="2025-10-01", to="2025-12-31", aggregation="monthly")  // Monthly trends
+
+4. pinmeto_get_google_ratings(from="2025-10-01", to="2025-12-31", aggregation="quarterly")
+
+5. pinmeto_get_google_keywords(from="2025-10-01", to="2025-12-31", limit=15)
+
+6. pinmeto_get_google_reviews(from="2025-10-01", to="2025-12-31", limit=50)
+
+7. pinmeto_get_facebook_insights(from="2025-10-01", to="2025-12-31", aggregation="quarterly", compare_with="prior_year")
+
+8. pinmeto_get_facebook_brandpage_insights(from="2025-10-01", to="2025-12-31")
+
+9. pinmeto_get_facebook_ratings(from="2025-10-01", to="2025-12-31", aggregation="quarterly")
+
+10. pinmeto_get_apple_insights(from="2025-10-01", to="2025-12-31", aggregation="quarterly")
 ```
+
+**Note:** Only add a second call with `compare_with="prior_period"` if user explicitly requests QoQ comparison.
 
 ## Report Structure
 

@@ -38,21 +38,26 @@ Parameters:
 ```
 Tool: pinmeto_get_google_insights
 Parameters:
-- start_date: "YYYY-MM-DD"
-- end_date: "YYYY-MM-DD"
+- from: "YYYY-MM-DD" (REQUIRED - start date)
+- to: "YYYY-MM-DD" (REQUIRED - end date)
 - aggregation: "monthly" | "quarterly" | "half_yearly" | "yearly"
-- comparison_type: "prior_period" (MoM/QoQ) OR "prior_year" (YoY)
+- compare_with: "prior_period" (MoM/QoQ) OR "prior_year" (YoY)
 - store_id: (optional - omit for all locations)
+- response_format: "json" (recommended)
 ```
 
-Call twice: once with `comparison_type: "prior_period"` and once with `comparison_type: "prior_year"` to get both comparison sets.
+**IMPORTANT:** Both `from` and `to` are required. Never omit these parameters.
+
+Call twice: once with `compare_with: "prior_period"` and once with `compare_with: "prior_year"` to get both comparison sets.
 
 ### Google Ratings
 
 ```
 Tool: pinmeto_get_google_ratings
 Parameters:
-- start_date, end_date, aggregation (same as above)
+- from: "YYYY-MM-DD" (REQUIRED)
+- to: "YYYY-MM-DD" (REQUIRED)
+- aggregation: "monthly" | "quarterly" | "half_yearly" | "yearly"
 - store_id: (optional)
 
 Returns: averageRating, totalReviews, distribution (1-5 stars)
@@ -63,7 +68,8 @@ Returns: averageRating, totalReviews, distribution (1-5 stars)
 ```
 Tool: pinmeto_get_google_keywords
 Parameters:
-- start_date, end_date
+- from: "YYYY-MM-DD" (REQUIRED)
+- to: "YYYY-MM-DD" (REQUIRED)
 - limit: 10 (monthly) | 15 (quarterly) | 20 (half-yearly) | 25 (yearly)
 - store_id: (optional)
 
@@ -75,7 +81,8 @@ Process results with keyword classification rules.
 ```
 Tool: pinmeto_get_google_reviews
 Parameters:
-- start_date, end_date
+- from: "YYYY-MM-DD" (REQUIRED)
+- to: "YYYY-MM-DD" (REQUIRED)
 - store_id: (optional)
 - limit: 50 (recent reviews for sentiment summary)
 ```
@@ -89,9 +96,10 @@ Parameters:
 ```
 Tool: pinmeto_get_facebook_insights
 Parameters:
-- start_date, end_date
-- aggregation: same as Google
-- comparison_type: "prior_period" | "prior_year"
+- from: "YYYY-MM-DD" (REQUIRED)
+- to: "YYYY-MM-DD" (REQUIRED)
+- aggregation: "monthly" | "quarterly" | "half_yearly" | "yearly"
+- compare_with: "prior_period" | "prior_year"
 - store_id: (optional)
 ```
 
@@ -100,7 +108,8 @@ Parameters:
 ```
 Tool: pinmeto_get_facebook_brandpage_insights
 Parameters:
-- start_date, end_date
+- from: "YYYY-MM-DD" (REQUIRED)
+- to: "YYYY-MM-DD" (REQUIRED)
 ```
 
 ### Facebook Ratings
@@ -108,7 +117,9 @@ Parameters:
 ```
 Tool: pinmeto_get_facebook_ratings
 Parameters:
-- start_date, end_date, aggregation
+- from: "YYYY-MM-DD" (REQUIRED)
+- to: "YYYY-MM-DD" (REQUIRED)
+- aggregation: "monthly" | "quarterly" | "half_yearly" | "yearly"
 - store_id: (optional)
 ```
 
@@ -117,8 +128,9 @@ Parameters:
 ```
 Tool: pinmeto_get_apple_insights
 Parameters:
-- start_date, end_date
-- aggregation: same as others
+- from: "YYYY-MM-DD" (REQUIRED)
+- to: "YYYY-MM-DD" (REQUIRED)
+- aggregation: "monthly" | "quarterly" | "half_yearly" | "yearly"
 - store_id: (optional)
 ```
 

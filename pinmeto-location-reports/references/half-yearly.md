@@ -11,21 +11,39 @@
 
 ## MCP Data Fetching Sequence
 
+**IMPORTANT:** All MCP tools require `from` and `to` date parameters.
+
+**DEFAULT:** Use `compare_with="prior_year"` (YoY) unless user specifically requests HoH comparison.
+
+For H2 2025: `from: "2025-07-01"`, `to: "2025-12-31"`
+
 ```
 1. pinmeto_get_locations(fields=["store_id", "name", "city", "country", "region"])
-2. pinmeto_get_google_insights(aggregation="half_yearly", comparison_type="prior_period")
-3. pinmeto_get_google_insights(aggregation="half_yearly", comparison_type="prior_year")
-4. pinmeto_get_google_insights(aggregation="quarterly") // For quarterly breakdown
-5. pinmeto_get_google_insights(aggregation="monthly") // For monthly trends
-6. pinmeto_get_google_ratings(aggregation="half_yearly")
-7. pinmeto_get_google_ratings(aggregation="monthly") // Rating trend
-8. pinmeto_get_google_keywords(limit=20)
-9. pinmeto_get_google_reviews(limit=100)
-10. pinmeto_get_facebook_insights(aggregation="half_yearly", comparison_type="prior_period")
-11. pinmeto_get_facebook_brandpage_insights()
-12. pinmeto_get_facebook_ratings(aggregation="half_yearly")
-13. pinmeto_get_apple_insights(aggregation="half_yearly")
+
+2. pinmeto_get_google_insights(from="2025-07-01", to="2025-12-31", aggregation="half_yearly", compare_with="prior_year")
+
+3. pinmeto_get_google_insights(from="2025-07-01", to="2025-12-31", aggregation="quarterly")
+
+4. pinmeto_get_google_insights(from="2025-07-01", to="2025-12-31", aggregation="monthly")
+
+5. pinmeto_get_google_ratings(from="2025-07-01", to="2025-12-31", aggregation="half_yearly")
+
+6. pinmeto_get_google_ratings(from="2025-07-01", to="2025-12-31", aggregation="monthly")
+
+7. pinmeto_get_google_keywords(from="2025-07-01", to="2025-12-31", limit=20)
+
+8. pinmeto_get_google_reviews(from="2025-07-01", to="2025-12-31", limit=100)
+
+9. pinmeto_get_facebook_insights(from="2025-07-01", to="2025-12-31", aggregation="half_yearly", compare_with="prior_year")
+
+10. pinmeto_get_facebook_brandpage_insights(from="2025-07-01", to="2025-12-31")
+
+11. pinmeto_get_facebook_ratings(from="2025-07-01", to="2025-12-31", aggregation="half_yearly")
+
+12. pinmeto_get_apple_insights(from="2025-07-01", to="2025-12-31", aggregation="half_yearly")
 ```
+
+**Note:** Only add a second call with `compare_with="prior_period"` if user explicitly requests HoH comparison.
 
 ## Report Structure
 

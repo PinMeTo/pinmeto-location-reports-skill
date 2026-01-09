@@ -12,19 +12,34 @@
 
 ## MCP Data Fetching Sequence
 
+**IMPORTANT:** All MCP tools require `from` and `to` date parameters.
+
+For 2025: `from: "2025-01-01"`, `to: "2025-12-31"`
+
 ```
 1. pinmeto_get_locations(fields=["store_id", "name", "city", "country", "region"])
-2. pinmeto_get_google_insights(aggregation="yearly", comparison_type="prior_year")
-3. pinmeto_get_google_insights(aggregation="quarterly") // All 4 quarters
-4. pinmeto_get_google_insights(aggregation="monthly") // 12-month trends
-5. pinmeto_get_google_ratings(aggregation="yearly", comparison_type="prior_year")
-6. pinmeto_get_google_ratings(aggregation="monthly") // Rating trajectory
-7. pinmeto_get_google_keywords(limit=25)
-8. pinmeto_get_google_reviews(limit=200) // Full year sentiment
-9. pinmeto_get_facebook_insights(aggregation="yearly", comparison_type="prior_year")
-10. pinmeto_get_facebook_brandpage_insights()
-11. pinmeto_get_facebook_ratings(aggregation="yearly")
-12. pinmeto_get_apple_insights(aggregation="yearly")
+
+2. pinmeto_get_google_insights(from="2025-01-01", to="2025-12-31", aggregation="yearly", compare_with="prior_year")
+
+3. pinmeto_get_google_insights(from="2025-01-01", to="2025-12-31", aggregation="quarterly")
+
+4. pinmeto_get_google_insights(from="2025-01-01", to="2025-12-31", aggregation="monthly")
+
+5. pinmeto_get_google_ratings(from="2025-01-01", to="2025-12-31", aggregation="yearly", compare_with="prior_year")
+
+6. pinmeto_get_google_ratings(from="2025-01-01", to="2025-12-31", aggregation="monthly")
+
+7. pinmeto_get_google_keywords(from="2025-01-01", to="2025-12-31", limit=25)
+
+8. pinmeto_get_google_reviews(from="2025-01-01", to="2025-12-31", limit=200)
+
+9. pinmeto_get_facebook_insights(from="2025-01-01", to="2025-12-31", aggregation="yearly", compare_with="prior_year")
+
+10. pinmeto_get_facebook_brandpage_insights(from="2025-01-01", to="2025-12-31")
+
+11. pinmeto_get_facebook_ratings(from="2025-01-01", to="2025-12-31", aggregation="yearly")
+
+12. pinmeto_get_apple_insights(from="2025-01-01", to="2025-12-31", aggregation="yearly")
 ```
 
 ## Report Structure
