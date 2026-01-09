@@ -42,7 +42,7 @@ from reportlab.platypus import (
     Table,
     TableStyle,
 )
-from reportlab.graphics.shapes import Drawing, Rect, String
+from reportlab.graphics.shapes import Drawing, Line, Rect, String
 from reportlab.graphics.charts.linecharts import HorizontalLineChart
 from reportlab.graphics.charts.barcharts import VerticalBarChart
 from reportlab.graphics.charts.piecharts import Pie
@@ -346,22 +346,35 @@ def header_footer(canvas, doc, report_title: str, logo_path: str = None, company
 # =============================================================================
 # Report Sections
 # =============================================================================
-def create_cover_page(data: dict, styles) -> list:
-    """Create the cover page elements."""
+def create_cover_page(data: dict, styles, logo_path: str = None) -> list:
+    """Create the cover page elements with PinMeTo branding."""
     elements = []
 
-    # Spacer for vertical centering
-    elements.append(Spacer(1, 2*inch))
+    # Logo at top (if available)
+    if logo_path and os.path.exists(logo_path):
+        # Logo aspect ratio is 2.21:1, use width=120 for ~54pt height
+        logo = Image(logo_path, width=120, height=54)
+        elements.append(logo)
+        elements.append(Spacer(1, 15))
+
+    # Blue accent line
+    line_drawing = Drawing(500, 10)
+    line_drawing.add(Line(0, 5, 500, 5, strokeColor=PINMETO_BLUE, strokeWidth=2))
+    elements.append(line_drawing)
+
+    # Spacer for vertical positioning
+    elements.append(Spacer(1, 1.5*inch))
 
     # Company/Brand name
     company_name = data.get('companyName') or data.get('company_name')
     if company_name:
         elements.append(Paragraph(company_name, styles['PinMeToH2']))
-        elements.append(Spacer(1, 10))
+        elements.append(Spacer(1, 15))
 
     # Report title
     title = data.get('title', 'Location Analytics Report')
     elements.append(Paragraph(title, styles['PinMeToTitle']))
+    elements.append(Spacer(1, 10))
 
     # Period
     period = data.get('period', '')
@@ -371,7 +384,7 @@ def create_cover_page(data: dict, styles) -> list:
     # Current period date range
     date_range = data.get('dateRange', '') or data.get('date_range', '')
     if date_range:
-        elements.append(Spacer(1, 20))
+        elements.append(Spacer(1, 30))
         elements.append(Paragraph(f"Current Period: {date_range}", styles['PinMeToBody']))
 
     # Prior period date range (for YoY comparison)
@@ -380,7 +393,15 @@ def create_cover_page(data: dict, styles) -> list:
     if prior_period and prior_date_range:
         elements.append(Paragraph(f"Prior Period ({prior_period}): {prior_date_range}", styles['PinMeToBody']))
 
-    elements.append(Spacer(1, 2*inch))
+    elements.append(Spacer(1, 1.5*inch))
+
+    # Generation date
+    elements.append(Paragraph(
+        f"Generated: {datetime.now().strftime('%Y-%m-%d')}",
+        styles['PinMeToBody']
+    ))
+
+    elements.append(Spacer(1, 0.5*inch))
 
     # Confidentiality notice
     elements.append(Paragraph(
@@ -445,6 +466,7 @@ def create_metrics_section(data: dict, platform: str, styles) -> list:
     display_name = platform_names.get(platform, platform.title())
 
     elements.append(Paragraph(f"{display_name} Performance", styles['PinMeToH1']))
+    elements.append(Spacer(1, 15))
 
     # Metrics table
     metrics = platform_data.get('metrics', [])
@@ -465,7 +487,7 @@ def create_metrics_section(data: dict, platform: str, styles) -> list:
     # Chart if data available
     chart_data = platform_data.get('chartData', []) or platform_data.get('chart_data', [])
     if chart_data:
-        elements.append(Spacer(1, 20))
+        elements.append(Spacer(1, 40))
         chart = create_bar_chart(chart_data)
         elements.append(chart)
 
@@ -482,11 +504,13 @@ def create_keywords_section(data: dict, styles) -> list:
         return elements
 
     elements.append(Paragraph("Search Keywords Analysis", styles['PinMeToH1']))
+    elements.append(Spacer(1, 15))
 
     # Top keywords table
     top_keywords = keywords_data.get('topKeywords', []) or keywords_data.get('top_keywords', [])
     if top_keywords:
         elements.append(Paragraph("Top Keywords", styles['PinMeToH2']))
+        elements.append(Spacer(1, 10))
 
         table_data = [['Rank', 'Keyword', 'Impressions', 'Category']]
         for i, kw in enumerate(top_keywords, 1):
@@ -504,8 +528,9 @@ def create_keywords_section(data: dict, styles) -> list:
     # Category distribution
     categories = keywords_data.get('categoryDistribution', []) or keywords_data.get('category_distribution', [])
     if categories:
-        elements.append(Spacer(1, 20))
+        elements.append(Spacer(1, 40))
         elements.append(Paragraph("Category Distribution", styles['PinMeToH2']))
+        elements.append(Spacer(1, 10))
         chart = create_pie_chart(categories)
         elements.append(chart)
 
@@ -522,6 +547,7 @@ def create_reviews_section(data: dict, styles) -> list:
         return elements
 
     elements.append(Paragraph("Review Sentiment Analysis", styles['PinMeToH1']))
+    elements.append(Spacer(1, 15))
 
     # Summary stats
     total = reviews_data.get('totalReviews', 0)
@@ -532,12 +558,13 @@ def create_reviews_section(data: dict, styles) -> list:
         f"<b>Total Reviews:</b> {total:,} | <b>Average Rating:</b> {avg_rating} ({rating_change})",
         styles['PinMeToBody']
     ))
-    elements.append(Spacer(1, 15))
+    elements.append(Spacer(1, 25))
 
     # Sentiment distribution pie chart
     sentiment = reviews_data.get('sentiment', {})
     if sentiment:
         elements.append(Paragraph("Sentiment Distribution", styles['PinMeToH2']))
+        elements.append(Spacer(1, 10))
         sentiment_data = [
             {'label': 'Positive', 'value': sentiment.get('positive', 0)},
             {'label': 'Neutral', 'value': sentiment.get('neutral', 0)},
@@ -545,12 +572,13 @@ def create_reviews_section(data: dict, styles) -> list:
         ]
         chart = create_pie_chart(sentiment_data)
         elements.append(chart)
-        elements.append(Spacer(1, 15))
+        elements.append(Spacer(1, 30))
 
     # Top themes table
     themes = reviews_data.get('topThemes', [])
     if themes:
         elements.append(Paragraph("Top Review Themes", styles['PinMeToH2']))
+        elements.append(Spacer(1, 10))
         table_data = [['Theme', 'Mentions', 'Sentiment']]
         for theme in themes:
             table_data.append([
@@ -620,7 +648,7 @@ def generate_report(data: dict, output_path: str, logo_path: str = None):
     elements = []
 
     # Cover page
-    elements.extend(create_cover_page(data, styles))
+    elements.extend(create_cover_page(data, styles, logo_path))
 
     # Executive summary
     elements.extend(create_executive_summary(data, styles))
