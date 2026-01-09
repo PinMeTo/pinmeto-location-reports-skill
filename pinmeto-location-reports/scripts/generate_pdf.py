@@ -71,18 +71,91 @@ from reportlab.graphics.charts.piecharts import Pie
 # =============================================================================
 # Helper Functions
 # =============================================================================
-def get_previous_quarter(period):
-    """Derive previous quarter from current period string like 'Q4 2025' -> 'Q3 2025'."""
+def get_previous_period(period, report_type=None):
+    """Derive previous period from current period string.
+
+    Handles multiple formats:
+    - Yearly: '2025' -> '2024'
+    - Quarterly: 'Q4 2025' -> 'Q3 2025'
+    - Monthly: 'October 2025' -> 'September 2025'
+
+    Args:
+        period: Period string in various formats
+        report_type: Optional hint ('yearly', 'quarterly', 'monthly')
+
+    Returns:
+        Previous period string, or None if not applicable
+    """
     import re
-    match = re.match(r'Q(\d)\s+(\d{4})', period)
-    if not match:
-        return "Prior Period"
-    quarter = int(match.group(1))
-    year = int(match.group(2))
-    if quarter == 1:
-        return f"Q4 {year - 1}"
-    else:
-        return f"Q{quarter - 1} {year}"
+    if not period:
+        return None
+
+    # Try yearly format first (just a year like "2025")
+    if re.match(r'^\d{4}$', str(period).strip()):
+        year = int(str(period).strip())
+        return str(year - 1)
+
+    # Try quarterly format ('Q4 2025')
+    match = re.match(r'Q(\d)\s+(\d{4})', str(period))
+    if match:
+        quarter = int(match.group(1))
+        year = int(match.group(2))
+        if quarter == 1:
+            return f"Q4 {year - 1}"
+        else:
+            return f"Q{quarter - 1} {year}"
+
+    # Try monthly format ('October 2025' or 'Oct 2025')
+    months = ['January', 'February', 'March', 'April', 'May', 'June',
+              'July', 'August', 'September', 'October', 'November', 'December']
+    months_short = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+                    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+
+    for i, (month_full, month_short) in enumerate(zip(months, months_short)):
+        match = re.match(rf'({month_full}|{month_short})\s+(\d{{4}})', str(period), re.IGNORECASE)
+        if match:
+            year = int(match.group(2))
+            if i == 0:  # January
+                return f"{months[11]} {year - 1}"
+            else:
+                return f"{months[i - 1]} {year}"
+
+    return None
+
+
+def detect_report_type(period):
+    """Detect report type from period string.
+
+    Returns:
+        'yearly', 'quarterly', 'monthly', or None
+    """
+    import re
+    if not period:
+        return None
+
+    # Yearly: just a year
+    if re.match(r'^\d{4}$', str(period).strip()):
+        return 'yearly'
+
+    # Quarterly: Q1-Q4 YYYY
+    if re.match(r'Q\d\s+\d{4}', str(period)):
+        return 'quarterly'
+
+    # Monthly: Month name + year
+    months = ['January', 'February', 'March', 'April', 'May', 'June',
+              'July', 'August', 'September', 'October', 'November', 'December']
+    for month in months:
+        if str(period).lower().startswith(month.lower()[:3]):
+            return 'monthly'
+
+    return None
+
+
+# Keep old function name for backwards compatibility
+def get_previous_quarter(period):
+    """Deprecated: Use get_previous_period() instead."""
+    result = get_previous_period(period)
+    return result if result else "Prior Period"
 
 
 # =============================================================================
@@ -783,7 +856,15 @@ def create_executive_summary(data: dict, styles) -> list:
     # Structured highlights with title + description (new format)
     structured_highlights = exec_summary.get('highlights', [])
     if structured_highlights:
-        elements.append(Paragraph("Quarter Highlights", styles['PinMeToH2']))
+        # Dynamic label based on report type
+        period = data.get('period', '')
+        report_type = detect_report_type(period)
+        highlights_label = {
+            'yearly': 'Year Highlights',
+            'quarterly': 'Quarter Highlights',
+            'monthly': 'Month Highlights'
+        }.get(report_type, 'Key Highlights')
+        elements.append(Paragraph(highlights_label, styles['PinMeToH2']))
         for highlight in structured_highlights:
             title = highlight.get('title', '')
             description = highlight.get('description', '')
@@ -858,21 +939,41 @@ def create_metrics_section(data: dict, platform: str, styles, period_info: dict 
     period_info = period_info or {}
     current_period = period_info.get('period', 'Current')
     prior_year_period = period_info.get('priorPeriod', 'Prior Year')
-    previous_quarter = get_previous_quarter(current_period)
+    report_type = detect_report_type(current_period)
+
+    # For yearly reports, only show YoY comparison (no quarterly column)
+    is_yearly = report_type == 'yearly'
 
     # Metrics table with actual period names
     metrics = platform_data.get('metrics', [])
     if metrics:
-        table_data = [['Metric', current_period, f'vs {previous_quarter}', f'vs {prior_year_period}']]
-        for metric in metrics:
-            table_data.append([
-                metric.get('name', ''),
-                str(metric.get('value', '')),
-                metric.get('periodChange', '') or metric.get('period_change', 'N/A'),
-                metric.get('yearChange', '') or metric.get('year_change', 'N/A')
-            ])
+        if is_yearly:
+            # Yearly: 3 columns - Metric | Value | YoY Change
+            table_data = [['Metric', current_period, f'vs {prior_year_period}']]
+            for metric in metrics:
+                table_data.append([
+                    metric.get('name', ''),
+                    str(metric.get('value', '')),
+                    metric.get('yearChange', '') or metric.get('periodChange', '') or metric.get('year_change', 'N/A')
+                ])
+            table = Table(table_data, colWidths=[180, 120, 190])
+        else:
+            # Quarterly/Monthly: 4 columns
+            previous_period = get_previous_period(current_period)
+            if previous_period:
+                table_data = [['Metric', current_period, f'vs {previous_period}', f'vs {prior_year_period}']]
+            else:
+                table_data = [['Metric', current_period, 'Period Change', 'Year Change']]
 
-        table = Table(table_data, colWidths=[160, 100, 115, 115])
+            for metric in metrics:
+                table_data.append([
+                    metric.get('name', ''),
+                    str(metric.get('value', '')),
+                    metric.get('periodChange', '') or metric.get('period_change', 'N/A'),
+                    metric.get('yearChange', '') or metric.get('year_change', 'N/A')
+                ])
+            table = Table(table_data, colWidths=[160, 100, 115, 115])
+
         table.setStyle(get_data_table_style())
         elements.append(table)
 

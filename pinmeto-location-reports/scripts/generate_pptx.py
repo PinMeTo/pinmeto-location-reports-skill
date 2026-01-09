@@ -98,7 +98,8 @@ def generate_bar_chart_image(chart_data, title, has_prior_data=False, current_la
     current_legend = current_label or 'Current Period'
     prior_legend = prior_label or 'Prior Period'
 
-    fig, ax = plt.subplots(figsize=(8, 5), facecolor='white')
+    # Smaller figure size to fit better on slides
+    fig, ax = plt.subplots(figsize=(6, 4), facecolor='white')
 
     labels = [d.get('label', '') for d in chart_data]
     current_values = [d.get('value', 0) for d in chart_data]
@@ -121,7 +122,7 @@ def generate_bar_chart_image(chart_data, title, has_prior_data=False, current_la
     for bar in bars1:
         height_val = bar.get_height()
         ax.text(bar.get_x() + bar.get_width() / 2, height_val,
-                f'{int(height_val):,}', ha='center', va='bottom', fontsize=8,
+                f'{int(height_val):,}', ha='center', va='bottom', fontsize=7,
                 color='#001334')
 
     # Add value labels above prior period bars if present
@@ -129,26 +130,27 @@ def generate_bar_chart_image(chart_data, title, has_prior_data=False, current_la
         for bar in bars2:
             height_val = bar.get_height()
             ax.text(bar.get_x() + bar.get_width() / 2, height_val,
-                    f'{int(height_val):,}', ha='center', va='bottom', fontsize=8,
+                    f'{int(height_val):,}', ha='center', va='bottom', fontsize=7,
                     color='#666666')
 
-    ax.set_ylabel('Value', fontsize=10)
-    ax.set_title(title, fontsize=14, fontweight='bold', color=CHART_COLORS['mid_grey'])
+    ax.set_ylabel('Value', fontsize=9)
+    ax.set_title(title, fontsize=11, fontweight='bold', color=CHART_COLORS['mid_grey'])
     ax.set_xticks(x)
-    ax.set_xticklabels(labels, fontsize=9, rotation=45, ha='right')
+    ax.set_xticklabels(labels, fontsize=8, rotation=30, ha='right')
 
     if has_prior_data:
-        # Place legend below the chart, outside the plot area
-        ax.legend(loc='upper center', bbox_to_anchor=(0.5, -0.15), ncol=2, fontsize=9, frameon=False)
+        # Place legend inside the chart at upper right to save space
+        ax.legend(loc='upper right', fontsize=8, frameon=True, facecolor='white', edgecolor='none')
 
     ax.spines['top'].set_visible(False)
     ax.spines['right'].set_visible(False)
-    plt.tight_layout()
-    plt.subplots_adjust(bottom=0.25)  # Make room for legend below
 
-    # Save to bytes
+    # Adjust layout to fit everything within figure bounds
+    plt.tight_layout()
+
+    # Save to bytes - use fixed figure size, not bbox_inches='tight'
     buf = io.BytesIO()
-    plt.savefig(buf, format='png', dpi=150, bbox_inches='tight', facecolor='white')
+    plt.savefig(buf, format='png', dpi=150, facecolor='white', pad_inches=0.1)
     plt.close(fig)
     buf.seek(0)
     return buf
@@ -307,20 +309,91 @@ def format_number(value):
         return f"{value/1_000:.1f}K"
     return str(value)
 
-def get_previous_quarter(period):
-    """Derive previous quarter from current period string like 'Q4 2025' -> 'Q3 2025'."""
+def get_previous_period(period, report_type=None):
+    """Derive previous period from current period string.
+
+    Handles multiple formats:
+    - Yearly: '2025' -> '2024'
+    - Quarterly: 'Q4 2025' -> 'Q3 2025'
+    - Monthly: 'October 2025' -> 'September 2025'
+
+    Args:
+        period: Period string in various formats
+        report_type: Optional hint ('yearly', 'quarterly', 'monthly')
+
+    Returns:
+        Previous period string, or None if not applicable
+    """
     import re
     if not period:
-        return "Prior Period"
+        return None
+
+    # Try yearly format first (just a year like "2025")
+    if re.match(r'^\d{4}$', period.strip()):
+        year = int(period.strip())
+        return str(year - 1)
+
+    # Try quarterly format ('Q4 2025')
     match = re.match(r'Q(\d)\s+(\d{4})', period)
-    if not match:
-        return "Prior Period"
-    quarter = int(match.group(1))
-    year = int(match.group(2))
-    if quarter == 1:
-        return f"Q4 {year - 1}"
-    else:
-        return f"Q{quarter - 1} {year}"
+    if match:
+        quarter = int(match.group(1))
+        year = int(match.group(2))
+        if quarter == 1:
+            return f"Q4 {year - 1}"
+        else:
+            return f"Q{quarter - 1} {year}"
+
+    # Try monthly format ('October 2025' or 'Oct 2025')
+    months = ['January', 'February', 'March', 'April', 'May', 'June',
+              'July', 'August', 'September', 'October', 'November', 'December']
+    months_short = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+                    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+
+    for i, (month_full, month_short) in enumerate(zip(months, months_short)):
+        match = re.match(rf'({month_full}|{month_short})\s+(\d{{4}})', period, re.IGNORECASE)
+        if match:
+            year = int(match.group(2))
+            if i == 0:  # January
+                return f"{months[11]} {year - 1}"
+            else:
+                return f"{months[i - 1]} {year}"
+
+    return None
+
+
+def detect_report_type(period):
+    """Detect report type from period string.
+
+    Returns:
+        'yearly', 'quarterly', 'monthly', or None
+    """
+    import re
+    if not period:
+        return None
+
+    # Yearly: just a year
+    if re.match(r'^\d{4}$', period.strip()):
+        return 'yearly'
+
+    # Quarterly: Q1-Q4 YYYY
+    if re.match(r'Q\d\s+\d{4}', period):
+        return 'quarterly'
+
+    # Monthly: Month name + year
+    months = ['January', 'February', 'March', 'April', 'May', 'June',
+              'July', 'August', 'September', 'October', 'November', 'December']
+    for month in months:
+        if period.lower().startswith(month.lower()[:3]):
+            return 'monthly'
+
+    return None
+
+
+# Keep old function name for backwards compatibility
+def get_previous_quarter(period):
+    """Deprecated: Use get_previous_period() instead."""
+    result = get_previous_period(period)
+    return result if result else "Prior Period"
 
 def find_logo_path(data):
     """Find logo path with fallback for different environments (e.g., Claude Desktop)."""
@@ -443,7 +516,16 @@ def create_executive_summary(prs, data):
     # Highlights - with increased spacing to allow text wrapping
     highlights = exec_summary.get("highlights", []) or data.get("highlights", [])
     if highlights:
-        add_text_box(slide, "Quarter Highlights", Inches(0.5), Inches(start_y),
+        # Dynamic label based on report type
+        period = data.get("period", "")
+        report_type = detect_report_type(period)
+        highlights_label = {
+            'yearly': 'Year Highlights',
+            'quarterly': 'Quarter Highlights',
+            'monthly': 'Month Highlights'
+        }.get(report_type, 'Key Highlights')
+
+        add_text_box(slide, highlights_label, Inches(0.5), Inches(start_y),
                      Inches(4.5), Inches(0.25), font_size=12, font_name=Brand.HEADING_FONT,
                      color=Brand.BLUE_MARINE, bold=True)
 
@@ -530,17 +612,32 @@ def create_metrics_slide(prs, title, metrics_data, period_info):
     # Metrics table
     metrics = metrics_data.get("metrics", [])
     current_period = period_info.get("period", "Current")
-    prior_year_period = period_info.get("priorPeriod", "Prior Year")  # e.g., Q4 2024
-    previous_quarter = get_previous_quarter(current_period)  # e.g., Q3 2025
+    prior_year_period = period_info.get("priorPeriod", "Prior Year")  # e.g., 2024 or Q4 2024
+    report_type = detect_report_type(current_period)
+
+    # For yearly reports, only show YoY comparison (no quarterly column)
+    # For quarterly/monthly, show both period-over-period and year-over-year
+    is_yearly = report_type == 'yearly'
 
     if metrics:
         rows = len(metrics) + 1  # +1 for header
-        cols = 4
+        cols = 3 if is_yearly else 4
         table = slide.shapes.add_table(rows, cols, Inches(0.5), Inches(table_start_y),
                                         Inches(4.3), Inches(0.3 * rows)).table
 
-        # Header - periodChange is QoQ, yearChange is YoY
-        headers = ["Metric", current_period, f"vs {previous_quarter}", f"vs {prior_year_period}"]
+        # Build headers based on report type
+        if is_yearly:
+            # Yearly: Metric | Value | YoY Change
+            headers = ["Metric", current_period, f"vs {prior_year_period}"]
+        else:
+            # Quarterly/Monthly: Metric | Value | vs Prior Period | vs Prior Year
+            previous_period = get_previous_period(current_period)
+            if previous_period:
+                headers = ["Metric", current_period, f"vs {previous_period}", f"vs {prior_year_period}"]
+            else:
+                # Fallback if period detection failed
+                headers = ["Metric", current_period, "Period Change", "Year Change"]
+
         for j, header in enumerate(headers):
             cell = table.cell(0, j)
             cell.text = header
@@ -554,12 +651,23 @@ def create_metrics_slide(prs, title, metrics_data, period_info):
         # Data rows
         for i, metric in enumerate(metrics):
             row_fill = Brand.WHITE if i % 2 == 0 else Brand.GREY
-            row_data = [
-                metric.get("name", ""),
-                str(metric.get("value", "")),
-                metric.get("periodChange", "N/A"),
-                metric.get("yearChange", "N/A")
-            ]
+
+            if is_yearly:
+                # Yearly: 3 columns - for yearly, periodChange IS the YoY change
+                row_data = [
+                    metric.get("name", ""),
+                    str(metric.get("value", "")),
+                    metric.get("yearChange") or metric.get("periodChange", "N/A")
+                ]
+            else:
+                # Quarterly/Monthly: 4 columns
+                row_data = [
+                    metric.get("name", ""),
+                    str(metric.get("value", "")),
+                    metric.get("periodChange", "N/A"),
+                    metric.get("yearChange", "N/A")
+                ]
+
             for j, value in enumerate(row_data):
                 cell = table.cell(i + 1, j)
                 cell.text = value
@@ -585,9 +693,11 @@ def create_metrics_slide(prs, title, metrics_data, period_info):
                                                 prior_label=prior_year_period)
 
         if chart_image:
-            # Add chart image
-            slide.shapes.add_picture(chart_image, Inches(5), Inches(table_start_y),
-                                     width=Inches(4.5), height=Inches(3.5))
+            # Add chart image - constrain to fit within slide (max bottom at 5.1")
+            chart_top = table_start_y
+            chart_height = min(3.0, 5.1 - chart_top)  # Ensure chart doesn't exceed slide
+            slide.shapes.add_picture(chart_image, Inches(5.2), Inches(chart_top),
+                                     width=Inches(4.3), height=Inches(chart_height))
         else:
             # Text fallback if matplotlib unavailable
             add_text_box(slide, "Period Comparison", Inches(5), Inches(table_start_y),
@@ -641,13 +751,19 @@ def create_keywords_slide(prs, keywords_data, period_info):
         add_text_box(slide, period_text, Inches(4), Inches(5.3), Inches(2), Inches(0.25),
                      font_size=8, color=Brand.MID_GREY, align=PP_ALIGN.CENTER)
 
-    # Keywords table
+    # Keywords table - calculate max rows that fit on slide
     keywords = keywords_data.get("topKeywords", [])
     if keywords:
-        rows = min(len(keywords), 10) + 1
+        row_height = 0.26  # Height per row in inches
+        max_table_bottom = 5.1  # Maximum Y position for table bottom
+        available_height = max_table_bottom - table_start_y
+        max_rows = int(available_height / row_height) - 1  # -1 for header
+        max_keywords = min(len(keywords), max_rows, 8)  # Cap at 8 keywords max
+
+        rows = max_keywords + 1  # +1 for header
         cols = 4
         table = slide.shapes.add_table(rows, cols, Inches(0.5), Inches(table_start_y),
-                                        Inches(5.5), Inches(0.28 * rows)).table
+                                        Inches(5.5), Inches(row_height * rows)).table
 
         # Header
         headers = ["#", "Keyword", "Impressions", "Category"]
@@ -662,7 +778,7 @@ def create_keywords_slide(prs, keywords_data, period_info):
             p.font.color.rgb = Brand.WHITE
 
         # Data rows
-        for i, kw in enumerate(keywords[:10]):
+        for i, kw in enumerate(keywords[:max_keywords]):
             row_fill = Brand.WHITE if i % 2 == 0 else Brand.GREY
             row_data = [
                 str(i + 1),
