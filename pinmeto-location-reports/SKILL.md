@@ -202,9 +202,68 @@ Read the appropriate reference file for report structure:
 
 The `[period]` parameter accepts: `monthly`, `quarterly`, `half-yearly`, or `yearly`.
 
-### Step 7: Quality Check
+### Step 7: Client Review (Human-in-the-Loop)
 
-Run through `references/qa-checklist.md` before delivering.
+**Before finalizing, present the draft report to the user for review.**
+
+#### 7.1 Generate Draft Report
+
+Generate the report with the `--draft` flag to add a visible watermark:
+
+```bash
+# PDF draft
+python generate_pdf.py --data report_data.json --output Brand_Q4_Report_DRAFT.pdf --period quarterly --draft
+
+# PPTX draft
+python generate_pptx.py --data report_data.json --output Brand_Q4_Report_DRAFT.pptx --period quarterly --draft
+```
+
+The watermark ("DRAFT - PENDING REVIEW") appears diagonally on every page/slide.
+
+#### 7.2 Present for Review
+
+Present the draft to the user with a summary of key data:
+
+```
+I've generated a draft Q4 2025 report with a DRAFT watermark.
+
+📄 File: Brand_Q4_2025_Report_DRAFT.pdf
+
+Key data included:
+- Total Views: 125,432 (↑12% YoY)
+- Total Actions: 8,234 (↑8% YoY)
+- Average Rating: 4.6 (↑0.2)
+- 12 locations analyzed
+
+Please review and let me know:
+- ✅ "Approved" - I'll generate the final version without watermark
+- 🔧 Any corrections needed - I'll fix and regenerate a new draft
+```
+
+#### 7.3 Review Checklist
+
+Ask the user to verify:
+1. **Executive Summary** - Is the narrative accurate and appropriate?
+2. **KPI Values** - Are all key metrics present and correct?
+3. **Charts & Graphs** - Do all visualizations render properly?
+4. **Tables** - Is data complete with no missing values?
+5. **Text Content** - Are titles, labels, and descriptions correct?
+6. **Branding** - Do logos, colors, and formatting look right?
+
+See `references/client-review.md` for the full checklist.
+
+#### 7.4 Handle Feedback
+
+- **If approved** → Regenerate without `--draft` flag, finalize report
+- **If changes needed** → Auto-fix and regenerate new draft:
+  - Text corrections → Update data JSON, regenerate with `--draft`
+  - Chart issues → Adjust chart parameters, regenerate with `--draft`
+  - Missing data → Re-fetch from MCP or flag as unavailable, regenerate
+  - Repeat review until approved
+
+### Step 8: Quality Check & Delivery
+
+Run through `references/qa-checklist.md` before delivering the final report.
 
 ## Data Schema for Report Generation
 

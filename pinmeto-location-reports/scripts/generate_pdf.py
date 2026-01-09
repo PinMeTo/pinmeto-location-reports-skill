@@ -613,11 +613,39 @@ def validate_report_data(data: dict) -> list[str]:
 
 
 # =============================================================================
+# Draft Watermark
+# =============================================================================
+def draw_draft_watermark(canvas, doc):
+    """Draw a diagonal 'DRAFT - PENDING REVIEW' watermark across the page."""
+    canvas.saveState()
+
+    # Semi-transparent gray text
+    canvas.setFillColor(colors.Color(0.7, 0.7, 0.7, alpha=0.4))
+    canvas.setFont('Helvetica-Bold', 60)
+
+    # Center of the page
+    page_width, page_height = doc.pagesize
+    center_x = page_width / 2
+    center_y = page_height / 2
+
+    # Rotate and draw text at center
+    canvas.translate(center_x, center_y)
+    canvas.rotate(45)
+    canvas.drawCentredString(0, 0, "DRAFT - PENDING REVIEW")
+
+    canvas.restoreState()
+
+
+# =============================================================================
 # Page Templates
 # =============================================================================
-def header_footer(canvas, doc, report_title: str, logo_path: str = None, company_name: str = None, period_info: dict = None):
+def header_footer(canvas, doc, report_title: str, logo_path: str = None, company_name: str = None, period_info: dict = None, is_draft: bool = False):
     """Add header and footer to each page."""
     canvas.saveState()
+
+    # Draw draft watermark if in draft mode
+    if is_draft:
+        draw_draft_watermark(canvas, doc)
 
     # Header line
     canvas.setStrokeColor(PINMETO_BLUE)
@@ -1086,7 +1114,7 @@ def create_appendix(data: dict, styles) -> list:
 # =============================================================================
 # Main Generation Function
 # =============================================================================
-def generate_report(data: dict, output_path: str, logo_path: str = None):
+def generate_report(data: dict, output_path: str, logo_path: str = None, is_draft: bool = False):
     """
     Generate a complete PDF report.
 
@@ -1094,6 +1122,7 @@ def generate_report(data: dict, output_path: str, logo_path: str = None):
         data: Report data dictionary with sections
         output_path: Path to save the PDF
         logo_path: Optional path to logo image (uses default if not provided)
+        is_draft: If True, adds "DRAFT - PENDING REVIEW" watermark on every page
     """
     # Validate data and print warnings for missing fields
     validate_report_data(data)
@@ -1149,10 +1178,19 @@ def generate_report(data: dict, output_path: str, logo_path: str = None):
     # Build PDF with header/footer
     report_title = data.get('title', 'Location Analytics Report')
     company_name = data.get('companyName') or data.get('company_name')
+
+    # Define page handlers - cover page gets watermark but no header, other pages get both
+    def on_first_page(c, d):
+        if is_draft:
+            draw_draft_watermark(c, d)
+
+    def on_later_pages(c, d):
+        header_footer(c, d, report_title, logo_path, company_name, period_info, is_draft)
+
     doc.build(
         elements,
-        onFirstPage=lambda c, d: None,  # No header on cover
-        onLaterPages=lambda c, d: header_footer(c, d, report_title, logo_path, company_name, period_info)
+        onFirstPage=on_first_page,
+        onLaterPages=on_later_pages
     )
 
     print(f"Report generated: {output_path}")
@@ -1168,6 +1206,8 @@ def main():
     parser.add_argument('--logo', help='Path to logo image')
     parser.add_argument('--period', choices=['monthly', 'quarterly', 'half-yearly', 'yearly'],
                         default='monthly', help='Report period type')
+    parser.add_argument('--draft', action='store_true',
+                        help='Add "DRAFT - PENDING REVIEW" watermark on every page')
 
     args = parser.parse_args()
 
@@ -1188,7 +1228,9 @@ def main():
 
     # Generate report with error handling
     try:
-        generate_report(data, args.output, args.logo)
+        generate_report(data, args.output, args.logo, is_draft=args.draft)
+        if args.draft:
+            print("Note: This is a DRAFT report. Run without --draft flag to generate final version.")
         return 0
     except PermissionError:
         print(f"Error: Cannot write to {args.output} - permission denied")

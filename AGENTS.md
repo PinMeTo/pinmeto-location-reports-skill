@@ -117,7 +117,14 @@ git push                # Push to remote
 
 **Report Generators:**
 - `generate_pdf.py`: Uses ReportLab for multi-page PDFs with charts (line, bar, pie), tables, and branded styling
-- `generate_pptx.js`: Uses PptxGenJS + Chart.js for 16:9 presentations with image-based charts for Keynote compatibility
+- `generate_pptx.py`: Uses python-pptx + matplotlib for 16:9 presentations with image-based charts for Keynote compatibility
+
+**Packaging:**
+To package the skill for distribution, run:
+```bash
+./package-skill.sh
+```
+This creates a `.skill` file in the `dist/` directory that can be installed in Claude Code.
 
 ### Data Flow
 

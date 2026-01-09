@@ -225,6 +225,43 @@ def generate_sentiment_pie_chart(sentiment_data):
 
 
 # =============================================================================
+# Draft Watermark
+# =============================================================================
+def add_draft_watermark(slide):
+    """Add a diagonal 'DRAFT - PENDING REVIEW' watermark to a slide."""
+    from pptx.oxml.ns import qn
+    from pptx.oxml import parse_xml
+
+    # Add a text box for the watermark (centered on slide)
+    watermark = slide.shapes.add_textbox(
+        Inches(0.5), Inches(2),
+        Inches(9), Inches(1.5)
+    )
+    tf = watermark.text_frame
+    p = tf.paragraphs[0]
+    p.text = "DRAFT - PENDING REVIEW"
+    p.font.size = Pt(48)
+    p.font.bold = True
+    p.font.color.rgb = RGBColor(0x99, 0x99, 0x99)  # Gray color
+    p.alignment = PP_ALIGN.CENTER
+
+    # Rotate the shape 45 degrees using OOXML
+    # Access the shape's spPr element to add rotation
+    sp = watermark._element
+    xfrm = sp.find('.//' + qn('a:xfrm'))
+    if xfrm is not None:
+        xfrm.set('rot', str(int(-45 * 60000)))  # Rotation in EMUs (60000 per degree)
+
+    # Move the watermark to the back
+    # Lower z-order by moving shape to beginning of shape tree
+    spTree = slide.shapes._spTree
+    sp_idx = list(spTree).index(sp)
+    if sp_idx > 2:  # Keep it behind content but above background
+        spTree.remove(sp)
+        spTree.insert(2, sp)
+
+
+# =============================================================================
 # Helper Functions
 # =============================================================================
 def set_shape_fill(shape, color):
@@ -863,11 +900,21 @@ def create_appendix_slide(prs, appendix_data):
 # =============================================================================
 # Main Generation Function
 # =============================================================================
-def generate_report(data, output_path):
-    """Generate the complete PowerPoint presentation."""
+def generate_report(data, output_path, is_draft=False):
+    """
+    Generate the complete PowerPoint presentation.
+
+    Args:
+        data: Report data dictionary
+        output_path: Path to save the PPTX file
+        is_draft: If True, adds "DRAFT - PENDING REVIEW" watermark on every slide
+    """
     prs = Presentation()
     prs.slide_width = SLIDE_WIDTH
     prs.slide_height = SLIDE_HEIGHT
+
+    # Track slides for watermarking
+    slides_created = []
 
     # Period info for subtitles
     period_info = {
@@ -877,43 +924,57 @@ def generate_report(data, output_path):
 
     # Create slides
     print("Creating title slide...")
-    create_title_slide(prs, data)
+    slide = create_title_slide(prs, data)
+    slides_created.append(slide)
 
     print("Creating executive summary...")
-    create_executive_summary(prs, data)
+    slides_created.append(create_executive_summary(prs, data))
 
     # Platform metrics
     if data.get("google"):
         print("Creating Google Business Profile slide...")
-        create_metrics_slide(prs, "Google Business Profile", data["google"], period_info)
+        slides_created.append(create_metrics_slide(prs, "Google Business Profile", data["google"], period_info))
 
     if data.get("facebook"):
         print("Creating Facebook Performance slide...")
-        create_metrics_slide(prs, "Facebook Performance", data["facebook"], period_info)
+        slides_created.append(create_metrics_slide(prs, "Facebook Performance", data["facebook"], period_info))
 
     if data.get("apple"):
         print("Creating Apple Maps Performance slide...")
-        create_metrics_slide(prs, "Apple Maps Performance", data["apple"], period_info)
+        slides_created.append(create_metrics_slide(prs, "Apple Maps Performance", data["apple"], period_info))
 
     # Keywords
     if data.get("keywords"):
         print("Creating Search Keywords slide...")
-        create_keywords_slide(prs, data["keywords"], period_info)
+        slides_created.append(create_keywords_slide(prs, data["keywords"], period_info))
 
     # Reviews
     if data.get("reviews"):
         print("Creating Reviews Sentiment slide...")
-        create_reviews_slide(prs, data["reviews"], period_info)
+        slide = create_reviews_slide(prs, data["reviews"], period_info)
+        if slide:
+            slides_created.append(slide)
 
     # Recommendations
     if data.get("recommendations"):
         print("Creating Recommendations slide...")
-        create_recommendations_slide(prs, data["recommendations"])
+        slide = create_recommendations_slide(prs, data["recommendations"])
+        if slide:
+            slides_created.append(slide)
 
     # Appendix
     if data.get("appendix"):
         print("Creating Appendix slide...")
-        create_appendix_slide(prs, data["appendix"])
+        slide = create_appendix_slide(prs, data["appendix"])
+        if slide:
+            slides_created.append(slide)
+
+    # Add watermarks to all slides if in draft mode
+    if is_draft:
+        print("Adding draft watermarks...")
+        for slide in slides_created:
+            if slide:  # Some functions may return None
+                add_draft_watermark(slide)
 
     # Save presentation
     prs.save(output_path)
@@ -929,6 +990,8 @@ def main():
     parser.add_argument("--period", default="quarterly",
                         choices=["monthly", "quarterly", "half-yearly", "yearly"],
                         help="Report period type")
+    parser.add_argument("--draft", action="store_true",
+                        help="Add 'DRAFT - PENDING REVIEW' watermark on every slide")
 
     args = parser.parse_args()
 
@@ -948,7 +1011,9 @@ def main():
 
     # Generate report
     try:
-        generate_report(data, args.output)
+        generate_report(data, args.output, is_draft=args.draft)
+        if args.draft:
+            print("Note: This is a DRAFT presentation. Run without --draft flag to generate final version.")
     except PermissionError:
         print(f"Error: Cannot write to {args.output} - permission denied", file=sys.stderr)
         sys.exit(1)

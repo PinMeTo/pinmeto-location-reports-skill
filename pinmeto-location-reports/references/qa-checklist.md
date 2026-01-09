@@ -9,6 +9,7 @@ Complete this checklist before delivering any report to ensure quality and accur
 - [Report Content Checks](#report-content-checks)
 - [Branding Compliance](#branding-compliance)
 - [Format-Specific Checks](#format-specific-checks)
+- [Client Review](#client-review)
 - [Final Review](#final-review)
 - [Issue Resolution](#issue-resolution)
 - [Sign-Off](#sign-off)
@@ -125,6 +126,35 @@ Complete this checklist before delivering any report to ensure quality and accur
 - [ ] Animations appropriate (minimal or none for data)
 - [ ] Speaker notes included (if requested)
 - [ ] File opens without errors
+
+## Client Review
+
+**Important:** Before delivering the final report, generate a draft version for client review.
+
+### Draft Generation
+- [ ] Generated report with `--draft` flag
+- [ ] Watermark ("DRAFT - PENDING REVIEW") visible on all pages/slides
+- [ ] File named with "_DRAFT" suffix (e.g., `Brand_Q4_Report_DRAFT.pdf`)
+
+### Present to Client
+- [ ] Summary of key data points provided
+- [ ] Review checklist shared (see `references/client-review.md`)
+- [ ] Clear instructions for approval or feedback
+
+### Client Verification
+Have the client verify:
+- [ ] Executive summary narrative is accurate
+- [ ] KPI values are present and correct
+- [ ] Charts and graphs render properly
+- [ ] Tables have complete data
+- [ ] Text content is correct (no placeholders)
+- [ ] Branding looks correct
+
+### Handle Feedback
+- [ ] If changes requested: fix issues, regenerate draft with watermark
+- [ ] Repeat review until approved
+- [ ] If approved: regenerate final version without `--draft` flag
+- [ ] Verify watermark is removed from final version
 
 ## Final Review
 
