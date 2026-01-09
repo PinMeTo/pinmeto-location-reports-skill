@@ -1,7 +1,7 @@
 [
   {
     "name": "quarterly_report_detection",
-    "skills": ["pinmeto-location-analytics"],
+    "skills": ["pinmeto-location-reports"],
     "query": "Create a quarterly report for Q4 2024",
     "expected_behavior": [
       "Detects quarterly report type from 'Q4 2024' pattern",
@@ -13,7 +13,7 @@
   },
   {
     "name": "monthly_pptx_format",
-    "skills": ["pinmeto-location-analytics"],
+    "skills": ["pinmeto-location-reports"],
     "query": "Generate October 2024 monthly report as PowerPoint",
     "expected_behavior": [
       "Detects monthly report type from 'October 2024' pattern",
@@ -25,7 +25,7 @@
   },
   {
     "name": "yearly_report_format",
-    "skills": ["pinmeto-location-analytics"],
+    "skills": ["pinmeto-location-reports"],
     "query": "Generate 2024 annual report for all locations",
     "expected_behavior": [
       "Detects yearly report type from '2024' and 'annual' keywords",
@@ -37,7 +37,7 @@
   },
   {
     "name": "half_yearly_detection",
-    "skills": ["pinmeto-location-analytics"],
+    "skills": ["pinmeto-location-reports"],
     "query": "Create an H1 2024 executive summary",
     "expected_behavior": [
       "Detects half-yearly report type from 'H1' pattern",
@@ -48,7 +48,7 @@
   },
   {
     "name": "single_location_report",
-    "skills": ["pinmeto-location-analytics"],
+    "skills": ["pinmeto-location-reports"],
     "query": "Generate Q3 2024 report for Store #47 only",
     "expected_behavior": [
       "Detects quarterly report type",
@@ -59,7 +59,7 @@
   },
   {
     "name": "google_data_lag_warning",
-    "skills": ["pinmeto-location-analytics"],
+    "skills": ["pinmeto-location-reports"],
     "query": "Create a monthly report for last week's data",
     "expected_behavior": [
       "Warns user about Google's ~10-day data lag",
@@ -69,7 +69,7 @@
   },
   {
     "name": "validation_before_generation",
-    "skills": ["pinmeto-location-analytics"],
+    "skills": ["pinmeto-location-reports"],
     "query": "Generate a quarterly report from the fetched data",
     "expected_behavior": [
       "Runs validate_report_data.py before generating PDF/PPTX",

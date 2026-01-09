@@ -1,5 +1,5 @@
 ---
-name: pinmeto-location-analytics
+name: pinmeto-location-reports
 description: Generates professional PDF and PowerPoint reports from PinMeTo location analytics data. Use when requesting location performance reports, Google Business insights, Facebook metrics, Apple Maps analytics, keyword analysis, or executive summaries for multi-location brands. Supports monthly, quarterly, half-yearly, and yearly formats.
 allowed-tools:
   - Read

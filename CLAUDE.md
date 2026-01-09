@@ -12,7 +12,7 @@ For detailed project documentation, data schemas, and domain knowledge, see [AGE
 
 ```
 pinmeto-location-analytics-skill/
-├── pinmeto-location-analytics/       # Skill package
+├── pinmeto-location-reports/         # Skill package
 │   ├── SKILL.md                      # Skill definition (triggers, workflow, branding)
 │   ├── scripts/
 │   │   ├── generate_pdf.py           # ReportLab-based PDF generation
@@ -29,14 +29,14 @@ pinmeto-location-analytics-skill/
 
 ### PDF Generation
 ```bash
-cd pinmeto-location-analytics
+cd pinmeto-location-reports
 pip install reportlab pillow
 python scripts/generate_pdf.py --data report_data.json --output report.pdf --period quarterly
 ```
 
 ### PPTX Generation
 ```bash
-cd pinmeto-location-analytics
+cd pinmeto-location-reports
 npm install
 node scripts/generate_pptx.js --data report_data.json --output report.pptx --period quarterly
 ```
