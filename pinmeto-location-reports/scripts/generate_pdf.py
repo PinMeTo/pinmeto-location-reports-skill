@@ -50,6 +50,23 @@ from reportlab.graphics.charts.piecharts import Pie
 
 
 # =============================================================================
+# Helper Functions
+# =============================================================================
+def get_previous_quarter(period):
+    """Derive previous quarter from current period string like 'Q4 2025' -> 'Q3 2025'."""
+    import re
+    match = re.match(r'Q(\d)\s+(\d{4})', period)
+    if not match:
+        return "Prior Period"
+    quarter = int(match.group(1))
+    year = int(match.group(2))
+    if quarter == 1:
+        return f"Q4 {year - 1}"
+    else:
+        return f"Q{quarter - 1} {year}"
+
+
+# =============================================================================
 # PinMeTo Brand Colors
 # =============================================================================
 PINMETO_BLUE = colors.HexColor('#3399FF')
@@ -257,13 +274,17 @@ def create_line_chart(data: list[dict], width=400, height=200) -> Drawing:
     return drawing
 
 
-def create_bar_chart(data: list[dict], width=400, height=200) -> Drawing:
+def create_bar_chart(data: list[dict], width=400, height=200, current_label=None, prior_label=None) -> Drawing:
     """Create a branded bar chart with optional comparison period. Returns empty Drawing if data is invalid."""
     drawing = Drawing(width, height)
 
     # Guard against empty or invalid data
     if not data or not isinstance(data, list):
         return drawing
+
+    # Use actual period names if provided
+    current_legend = current_label or 'Current'
+    prior_legend = prior_label or 'Prior'
 
     chart = VerticalBarChart()
     chart.x = 50
@@ -302,8 +323,8 @@ def create_bar_chart(data: list[dict], width=400, height=200) -> Drawing:
         legend.alignment = 'right'
         legend.columnMaximum = 1
         legend.colorNamePairs = [
-            (PINMETO_BLUE, 'Current'),
-            (PINMETO_LIGHT_BLUE, 'Prior')
+            (PINMETO_BLUE, current_legend),
+            (PINMETO_LIGHT_BLUE, prior_legend)
         ]
         drawing.add(legend)
 
@@ -598,7 +619,7 @@ def create_section_insights(insights: list, styles) -> list:
     return elements
 
 
-def create_metrics_section(data: dict, platform: str, styles) -> list:
+def create_metrics_section(data: dict, platform: str, styles, period_info: dict = None) -> list:
     """Create platform-specific metrics section."""
     elements = []
 
@@ -622,10 +643,16 @@ def create_metrics_section(data: dict, platform: str, styles) -> list:
 
     elements.append(Spacer(1, 10))
 
-    # Metrics table
+    # Get period names for table headers
+    period_info = period_info or {}
+    current_period = period_info.get('period', 'Current')
+    prior_year_period = period_info.get('priorPeriod', 'Prior Year')
+    previous_quarter = get_previous_quarter(current_period)
+
+    # Metrics table with actual period names
     metrics = platform_data.get('metrics', [])
     if metrics:
-        table_data = [['Metric', 'Value', 'vs Prior Period', 'vs Prior Year']]
+        table_data = [['Metric', current_period, f'vs {previous_quarter}', f'vs {prior_year_period}']]
         for metric in metrics:
             table_data.append([
                 metric.get('name', ''),
@@ -638,11 +665,11 @@ def create_metrics_section(data: dict, platform: str, styles) -> list:
         table.setStyle(get_data_table_style())
         elements.append(table)
 
-    # Chart if data available
+    # Chart if data available (compares to prior year same period)
     chart_data = platform_data.get('chartData', []) or platform_data.get('chart_data', [])
     if chart_data:
         elements.append(Spacer(1, 40))
-        chart = create_bar_chart(chart_data)
+        chart = create_bar_chart(chart_data, current_label=current_period, prior_label=prior_year_period)
         elements.append(chart)
 
     elements.append(PageBreak())
@@ -891,6 +918,12 @@ def generate_report(data: dict, output_path: str, logo_path: str = None):
     styles = get_pinmeto_styles()
     elements = []
 
+    # Period info for headers and tables
+    period_info = {
+        'period': data.get('period', ''),
+        'priorPeriod': data.get('priorPeriod', '') or data.get('prior_period', '')
+    }
+
     # Cover page
     elements.extend(create_cover_page(data, styles, logo_path))
 
@@ -898,13 +931,13 @@ def generate_report(data: dict, output_path: str, logo_path: str = None):
     elements.extend(create_executive_summary(data, styles))
 
     # Google metrics
-    elements.extend(create_metrics_section(data, 'google', styles))
+    elements.extend(create_metrics_section(data, 'google', styles, period_info))
 
     # Facebook metrics
-    elements.extend(create_metrics_section(data, 'facebook', styles))
+    elements.extend(create_metrics_section(data, 'facebook', styles, period_info))
 
     # Apple metrics
-    elements.extend(create_metrics_section(data, 'apple', styles))
+    elements.extend(create_metrics_section(data, 'apple', styles, period_info))
 
     # Keywords
     elements.extend(create_keywords_section(data, styles))
@@ -921,10 +954,6 @@ def generate_report(data: dict, output_path: str, logo_path: str = None):
     # Build PDF with header/footer
     report_title = data.get('title', 'Location Analytics Report')
     company_name = data.get('companyName') or data.get('company_name')
-    period_info = {
-        'period': data.get('period', ''),
-        'priorPeriod': data.get('priorPeriod', '') or data.get('prior_period', '')
-    }
     doc.build(
         elements,
         onFirstPage=lambda c, d: None,  # No header on cover

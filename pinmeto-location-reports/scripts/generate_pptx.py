@@ -43,6 +43,7 @@ except ImportError:
 SCRIPT_DIR = Path(__file__).parent
 ASSETS_DIR = SCRIPT_DIR.parent / "assets"
 DEFAULT_LOGO = ASSETS_DIR / "logos" / "PinMeTo_Logo_Landscape.jpg"
+DEFAULT_LOGO_VERTICAL = ASSETS_DIR / "logos" / "Pinmeto_Logo_Vertical.jpg"
 
 # =============================================================================
 # PinMeTo Brand Constants
@@ -78,12 +79,16 @@ CHART_COLORS = {
 # =============================================================================
 # Chart Generation Functions (matplotlib)
 # =============================================================================
-def generate_bar_chart_image(chart_data, title, has_prior_data=False):
+def generate_bar_chart_image(chart_data, title, has_prior_data=False, current_label=None, prior_label=None):
     """Generate a bar chart as PNG bytes using matplotlib."""
     if not MATPLOTLIB_AVAILABLE:
         return None
     if not chart_data or len(chart_data) == 0:
         return None
+
+    # Use actual period names if provided, otherwise fall back to generic labels
+    current_legend = current_label or 'Current Period'
+    prior_legend = prior_label or 'Prior Period'
 
     fig, ax = plt.subplots(figsize=(8, 5), facecolor='white')
 
@@ -95,14 +100,14 @@ def generate_bar_chart_image(chart_data, title, has_prior_data=False):
 
     # Current period bars
     bars1 = ax.bar([i - width/2 if has_prior_data else i for i in x],
-                   current_values, width, label='Current Period',
+                   current_values, width, label=current_legend,
                    color=CHART_COLORS['blue'])
 
     # Prior period bars (if available)
     if has_prior_data:
         prior_values = [d.get('priorValue', 0) for d in chart_data]
         bars2 = ax.bar([i + width/2 for i in x], prior_values, width,
-                       label='Prior Period', color=CHART_COLORS['light_blue'])
+                       label=prior_legend, color=CHART_COLORS['light_blue'])
 
     ax.set_ylabel('Value', fontsize=10)
     ax.set_title(title, fontsize=14, fontweight='bold', color=CHART_COLORS['mid_grey'])
@@ -110,11 +115,13 @@ def generate_bar_chart_image(chart_data, title, has_prior_data=False):
     ax.set_xticklabels(labels, fontsize=9, rotation=45, ha='right')
 
     if has_prior_data:
-        ax.legend(loc='upper right', fontsize=9)
+        # Place legend below the chart, outside the plot area
+        ax.legend(loc='upper center', bbox_to_anchor=(0.5, -0.15), ncol=2, fontsize=9, frameon=False)
 
     ax.spines['top'].set_visible(False)
     ax.spines['right'].set_visible(False)
     plt.tight_layout()
+    plt.subplots_adjust(bottom=0.25)  # Make room for legend below
 
     # Save to bytes
     buf = io.BytesIO()
@@ -240,6 +247,19 @@ def format_number(value):
         return f"{value/1_000:.1f}K"
     return str(value)
 
+def get_previous_quarter(period):
+    """Derive previous quarter from current period string like 'Q4 2025' -> 'Q3 2025'."""
+    import re
+    match = re.match(r'Q(\d)\s+(\d{4})', period)
+    if not match:
+        return "Prior Period"
+    quarter = int(match.group(1))
+    year = int(match.group(2))
+    if quarter == 1:
+        return f"Q4 {year - 1}"
+    else:
+        return f"Q{quarter - 1} {year}"
+
 # =============================================================================
 # Slide Creation Functions
 # =============================================================================
@@ -248,31 +268,31 @@ def create_title_slide(prs, data):
     slide_layout = prs.slide_layouts[6]  # Blank layout
     slide = prs.slides.add_slide(slide_layout)
 
-    # Logo
+    # Logo - use landscape version
     logo_path = data.get("logoPath", str(DEFAULT_LOGO))
     if os.path.exists(logo_path):
-        slide.shapes.add_picture(logo_path, Inches(0.5), Inches(0.4), width=Inches(1.8))
+        slide.shapes.add_picture(logo_path, Inches(0.5), Inches(0.3), width=Inches(1.8))
 
-    # Company name
+    # Company name - tighter spacing below logo
     company_name = data.get("companyName") or data.get("company_name", "")
     if company_name:
-        add_text_box(slide, company_name, Inches(0.5), Inches(1.5), Inches(9), Inches(0.4),
+        add_text_box(slide, company_name, Inches(0.5), Inches(1.3), Inches(9), Inches(0.4),
                      font_size=16, color=Brand.MID_GREY)
 
     # Main title
     title = data.get("title", "Location Analytics Report")
-    add_text_box(slide, title, Inches(0.5), Inches(2), Inches(9), Inches(1),
-                 font_size=36, font_name=Brand.HEADING_FONT, color=Brand.BLUE_MARINE, bold=True)
+    add_text_box(slide, title, Inches(0.5), Inches(1.8), Inches(9), Inches(0.9),
+                 font_size=32, font_name=Brand.HEADING_FONT, color=Brand.BLUE_MARINE, bold=True)
 
-    # Period subtitle
+    # Period subtitle - tighter spacing
     period = data.get("period", "")
-    add_text_box(slide, period, Inches(0.5), Inches(3), Inches(9), Inches(0.5),
-                 font_size=24, font_name=Brand.HEADING_FONT, color=Brand.BLUE)
+    add_text_box(slide, period, Inches(0.5), Inches(2.8), Inches(9), Inches(0.5),
+                 font_size=20, font_name=Brand.HEADING_FONT, color=Brand.BLUE)
 
     # Current period date range
     date_range = data.get("dateRange", "")
     if date_range:
-        add_text_box(slide, f"Current Period: {date_range}", Inches(0.5), Inches(3.6),
+        add_text_box(slide, f"Current Period: {date_range}", Inches(0.5), Inches(3.5),
                      Inches(9), Inches(0.3), font_size=12, color=Brand.MID_GREY)
 
     # Prior period date range
@@ -280,12 +300,12 @@ def create_title_slide(prs, data):
     prior_date_range = data.get("priorDateRange", "")
     if prior_period and prior_date_range:
         add_text_box(slide, f"Prior Period ({prior_period}): {prior_date_range}",
-                     Inches(0.5), Inches(3.95), Inches(9), Inches(0.3),
+                     Inches(0.5), Inches(3.85), Inches(9), Inches(0.3),
                      font_size=12, color=Brand.MID_GREY)
 
-    # Generation date
+    # Generation date - positioned at bottom
     today = date.today().isoformat()
-    add_text_box(slide, f"Generated: {today}", Inches(0.5), Inches(5),
+    add_text_box(slide, f"Generated: {today}", Inches(0.5), Inches(5.15),
                  Inches(4), Inches(0.3), font_size=10, color=Brand.MID_GREY)
 
     return slide
@@ -414,14 +434,18 @@ def create_metrics_slide(prs, title, metrics_data, period_info):
 
     # Metrics table
     metrics = metrics_data.get("metrics", [])
+    current_period = period_info.get("period", "Current")
+    prior_year_period = period_info.get("priorPeriod", "Prior Year")  # e.g., Q4 2024
+    previous_quarter = get_previous_quarter(current_period)  # e.g., Q3 2025
+
     if metrics:
         rows = len(metrics) + 1  # +1 for header
         cols = 4
         table = slide.shapes.add_table(rows, cols, Inches(0.5), Inches(table_start_y),
                                         Inches(4.3), Inches(0.3 * rows)).table
 
-        # Header
-        headers = ["Metric", "Value", "vs Prior Period", "vs Prior Year"]
+        # Header - periodChange is QoQ, yearChange is YoY
+        headers = ["Metric", current_period, f"vs {previous_quarter}", f"vs {prior_year_period}"]
         for j, header in enumerate(headers):
             cell = table.cell(0, j)
             cell.text = header
@@ -449,12 +473,14 @@ def create_metrics_slide(prs, title, metrics_data, period_info):
                 p = cell.text_frame.paragraphs[0]
                 p.font.size = Pt(9)
 
-    # Chart - bar chart image or text fallback
+    # Chart - bar chart image or text fallback (compares to prior year same period)
     chart_data = metrics_data.get("chartData", [])
     if chart_data:
         has_prior = any(d.get('priorValue') is not None for d in chart_data)
-        chart_title = "Current vs Prior Period" if has_prior else "Monthly Trend"
-        chart_image = generate_bar_chart_image(chart_data, chart_title, has_prior)
+        chart_title = f"{current_period} vs {prior_year_period}" if has_prior else "Monthly Trend"
+        chart_image = generate_bar_chart_image(chart_data, chart_title, has_prior,
+                                                current_label=current_period,
+                                                prior_label=prior_year_period)
 
         if chart_image:
             # Add chart image
@@ -803,9 +829,12 @@ def create_appendix_slide(prs, appendix_data):
             value = loc_coverage.get(key)
             if value:
                 suffix = " active locations" if key == "totalLocations" else ""
+                # Geographic coverage can have long country lists - give it more height
+                box_height = 0.5 if key == "geographicCoverage" else 0.2
+                row_spacing = 0.55 if key == "geographicCoverage" else 0.25
                 add_text_box(slide, f"{label}: {value}{suffix}", Inches(5.2), Inches(right_y),
-                             Inches(4.5), Inches(0.18), font_size=9, color=Brand.MID_GREY)
-                right_y += 0.2
+                             Inches(4.5), Inches(box_height), font_size=9, color=Brand.MID_GREY)
+                right_y += row_spacing
 
     return slide
 
