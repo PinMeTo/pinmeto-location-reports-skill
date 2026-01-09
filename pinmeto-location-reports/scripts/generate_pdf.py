@@ -14,11 +14,16 @@ Author: PinMeTo
 """
 
 import argparse
+import io
 import json
 import os
 from datetime import datetime
 from pathlib import Path
 from typing import Any
+
+import matplotlib
+matplotlib.use('Agg')  # Non-interactive backend for PDF generation
+import matplotlib.pyplot as plt
 
 # Auto-detect paths relative to script location
 SCRIPT_DIR = Path(__file__).parent
@@ -75,6 +80,7 @@ PINMETO_BLUE_MARINE = colors.HexColor('#001334')
 PINMETO_LIGHT_BLUE = colors.HexColor('#bbd9fa')
 PINMETO_GREY = colors.HexColor('#F2F3F4')
 PINMETO_MID_GREY = colors.HexColor('#333333')
+PINMETO_GREEN = colors.HexColor('#28a745')  # For positive changes
 
 # Chart colors cycle
 CHART_COLORS = [PINMETO_BLUE, PINMETO_ORANGE, PINMETO_LIGHT_BLUE, PINMETO_MID_GREY]
@@ -165,7 +171,6 @@ def get_pinmeto_styles():
         textColor=PINMETO_MID_GREY,
         spaceBefore=3,
         spaceAfter=3,
-        leftIndent=15,
         leading=12,
     ))
 
@@ -340,11 +345,23 @@ def create_pie_chart(data: list[dict], width=300, height=200) -> Drawing:
     if not data or not isinstance(data, list):
         return drawing
 
+    # Scale pie size based on available width
+    if width < 220:
+        # Compact layout for narrow containers (e.g., keywords section)
+        pie_size = 70
+        pie_x = 10
+        legend_x = pie_x + pie_size + 15  # 15pt gap after pie
+    else:
+        # Standard layout
+        pie_size = 120
+        pie_x = 50
+        legend_x = 200
+
     pie = Pie()
-    pie.x = 50  # Move pie left to make room for legend
-    pie.y = 30
-    pie.width = 120
-    pie.height = 120
+    pie.x = pie_x
+    pie.y = (height - pie_size) // 2  # Center vertically
+    pie.width = pie_size
+    pie.height = pie_size
 
     # Extract data
     pie.data = [d.get('value', 0) for d in data]
@@ -362,8 +379,8 @@ def create_pie_chart(data: list[dict], width=300, height=200) -> Drawing:
     # Add legend on the right side with proper spacing
     from reportlab.graphics.charts.legends import Legend
     legend = Legend()
-    legend.x = 200  # Position to the right of pie chart
-    legend.y = height - 60  # Position near top
+    legend.x = legend_x
+    legend.y = height - 50  # Position near top
     legend.fontName = 'Helvetica'
     legend.fontSize = 8
     legend.alignment = 'left'
@@ -373,6 +390,160 @@ def create_pie_chart(data: list[dict], width=300, height=200) -> Drawing:
         for i, d in enumerate(data)
     ]
     drawing.add(legend)
+
+    return drawing
+
+
+def generate_bar_chart_image(data: list[dict], width=450, height=220, current_label=None, prior_label=None) -> io.BytesIO:
+    """
+    Generate bar chart using matplotlib (matches PPTX approach).
+    Returns BytesIO buffer with PNG image, or None if data is invalid.
+    """
+    if not data or not isinstance(data, list):
+        return None
+
+    labels = [d.get('label', '') for d in data]
+    values = [d.get('value', 0) for d in data]
+    prior_values = [d.get('priorValue', 0) for d in data]
+    has_prior = any(v > 0 for v in prior_values)
+
+    # Create figure with proper size
+    fig, ax = plt.subplots(figsize=(width / 72, height / 72), dpi=150)
+
+    x = list(range(len(labels)))
+    bar_width = 0.35 if has_prior else 0.5
+
+    # Draw current period bars
+    if has_prior:
+        bars1 = ax.bar([i - bar_width / 2 for i in x], values, bar_width,
+                       label=current_label or 'Current', color='#3399FF')
+        bars2 = ax.bar([i + bar_width / 2 for i in x], prior_values, bar_width,
+                       label=prior_label or 'Prior', color='#bbd9fa')
+    else:
+        bars1 = ax.bar(x, values, bar_width, label=current_label or 'Current', color='#3399FF')
+        bars2 = None
+
+    # Add value labels above current period bars
+    for bar in bars1:
+        height_val = bar.get_height()
+        ax.text(bar.get_x() + bar.get_width() / 2, height_val,
+                f'{int(height_val):,}', ha='center', va='bottom', fontsize=7,
+                color='#001334')
+
+    # Add value labels above prior period bars if present
+    if bars2:
+        for bar in bars2:
+            height_val = bar.get_height()
+            ax.text(bar.get_x() + bar.get_width() / 2, height_val,
+                    f'{int(height_val):,}', ha='center', va='bottom', fontsize=7,
+                    color='#666666')
+
+    # Style the chart
+    ax.set_xticks(x)
+    ax.set_xticklabels(labels, fontsize=9)
+    ax.yaxis.set_major_formatter(plt.FuncFormatter(lambda x, p: format(int(x), ',')))
+    ax.tick_params(axis='y', labelsize=8)
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
+    ax.legend(loc='upper right', fontsize=8)
+
+    plt.tight_layout()
+
+    # Save to buffer
+    buf = io.BytesIO()
+    plt.savefig(buf, format='png', dpi=150, bbox_inches='tight',
+                facecolor='white', edgecolor='none')
+    buf.seek(0)
+    plt.close(fig)
+
+    return buf
+
+
+def create_kpi_cards(kpis: list, width=400) -> Drawing:
+    """
+    Create a 2x2 grid of KPI cards matching PPTX style.
+
+    Each card shows:
+    - Large value in blue
+    - Metric name in grey
+    - Change indicator in green/orange
+    """
+    if not kpis:
+        return Drawing(width, 10)
+
+    # Card dimensions
+    card_width = 180
+    card_height = 75
+    gap = 15
+
+    # Calculate total drawing dimensions
+    total_width = card_width * 2 + gap
+    total_height = card_height * 2 + gap
+
+    drawing = Drawing(total_width, total_height)
+
+    for i, kpi in enumerate(kpis[:4]):
+        col = i % 2
+        row = i // 2
+
+        # Position: ReportLab y is bottom-up, so row 0 is at top
+        x = col * (card_width + gap)
+        y = total_height - (row + 1) * (card_height + gap) + gap
+
+        # Card background with rounded corners effect (using Rect)
+        rect = Rect(x, y, card_width, card_height)
+        rect.fillColor = PINMETO_GREY
+        rect.strokeColor = PINMETO_LIGHT_BLUE
+        rect.strokeWidth = 1
+        rect.rx = 5  # Rounded corners
+        rect.ry = 5
+        drawing.add(rect)
+
+        # KPI value (centered, large blue text)
+        value = kpi.get('value', 'N/A')
+        value_text = String(
+            x + card_width / 2,
+            y + card_height - 28,
+            str(value),
+            fontSize=22,
+            fontName='Helvetica-Bold',
+            fillColor=PINMETO_BLUE,
+            textAnchor='middle'
+        )
+        drawing.add(value_text)
+
+        # KPI name (centered, grey text)
+        name = kpi.get('name', '')
+        name_text = String(
+            x + card_width / 2,
+            y + card_height / 2 - 8,
+            name,
+            fontSize=9,
+            fontName='Helvetica',
+            fillColor=PINMETO_MID_GREY,
+            textAnchor='middle'
+        )
+        drawing.add(name_text)
+
+        # KPI change (centered, colored based on positive/negative)
+        change = kpi.get('change', '')
+        if change:
+            # Determine color based on change direction
+            if change.startswith('-'):
+                change_color = PINMETO_ORANGE
+            else:
+                change_color = PINMETO_GREEN
+
+            change_text = String(
+                x + card_width / 2,
+                y + 12,
+                change,
+                fontSize=10,
+                fontName='Helvetica',
+                fillColor=change_color,
+                textAnchor='middle'
+            )
+            drawing.add(change_text)
 
     return drawing
 
@@ -580,24 +751,13 @@ def create_executive_summary(data: dict, styles) -> list:
             for highlight in highlights:
                 elements.append(Paragraph(f"• {highlight}", styles['PinMeToBody']))
 
-    # KPI summary table
+    # KPI summary cards (2x2 grid matching PPTX style)
     kpis = data.get('kpis', [])
     if kpis:
         elements.append(Spacer(1, 20))
-        elements.append(Paragraph("Performance Summary", styles['PinMeToH2']))
-
-        # Create KPI cards as table
-        kpi_data = [['Metric', 'Value', 'Change']]
-        for kpi in kpis:
-            kpi_data.append([
-                kpi.get('name', ''),
-                kpi.get('value', ''),
-                kpi.get('change', '')
-            ])
-
-        table = Table(kpi_data, colWidths=[200, 100, 100])
-        table.setStyle(get_data_table_style())
-        elements.append(table)
+        elements.append(Paragraph("Performance Metrics", styles['PinMeToH2']))
+        elements.append(Spacer(1, 10))
+        elements.append(create_kpi_cards(kpis))
 
     elements.append(PageBreak())
     return elements
@@ -661,23 +821,31 @@ def create_metrics_section(data: dict, platform: str, styles, period_info: dict 
                 metric.get('yearChange', '') or metric.get('year_change', 'N/A')
             ])
 
-        table = Table(table_data, colWidths=[150, 80, 100, 100])
+        table = Table(table_data, colWidths=[160, 100, 115, 115])
         table.setStyle(get_data_table_style())
         elements.append(table)
 
     # Chart if data available (compares to prior year same period)
+    # Uses matplotlib for better rendering with value labels above bars
     chart_data = platform_data.get('chartData', []) or platform_data.get('chart_data', [])
     if chart_data:
-        elements.append(Spacer(1, 40))
-        chart = create_bar_chart(chart_data, current_label=current_period, prior_label=prior_year_period)
-        elements.append(chart)
+        elements.append(Spacer(1, 30))
+        chart_image = generate_bar_chart_image(
+            chart_data,
+            width=450,
+            height=200,
+            current_label=current_period,
+            prior_label=prior_year_period
+        )
+        if chart_image:
+            elements.append(Image(chart_image, width=450, height=200))
 
     elements.append(PageBreak())
     return elements
 
 
 def create_keywords_section(data: dict, styles) -> list:
-    """Create keywords analysis section."""
+    """Create keywords analysis section with side-by-side layout."""
     elements = []
 
     keywords_data = data.get('keywords', {})
@@ -692,35 +860,67 @@ def create_keywords_section(data: dict, styles) -> list:
 
     elements.append(Spacer(1, 10))
 
-    # Top keywords table
+    # Get data for both sections
     top_keywords = keywords_data.get('topKeywords', []) or keywords_data.get('top_keywords', [])
+    categories = keywords_data.get('categoryDistribution', []) or keywords_data.get('category_distribution', [])
+
+    # Build left column: Keywords table
+    left_content = []
     if top_keywords:
-        elements.append(Paragraph("Top Keywords", styles['PinMeToH2']))
-        elements.append(Spacer(1, 10))
+        left_content.append(Paragraph("Top Keywords", styles['PinMeToH2']))
+        left_content.append(Spacer(1, 8))
+
+        # Create a style for wrapped table cells
+        cell_style = ParagraphStyle(
+            'TableCell',
+            fontName='Helvetica',
+            fontSize=8,
+            leading=10,
+            textColor=PINMETO_MID_GREY,
+        )
 
         table_data = [['Rank', 'Keyword', 'Impressions', 'Category']]
         for i, kw in enumerate(top_keywords, 1):
+            # Use Paragraph for keyword to enable text wrapping
+            keyword_text = kw.get('keyword', '')
+            keyword_para = Paragraph(keyword_text, cell_style)
             table_data.append([
                 str(i),
-                kw.get('keyword', ''),
+                keyword_para,
                 str(kw.get('impressions', '')),
                 kw.get('category', '')
             ])
 
-        table = Table(table_data, colWidths=[50, 200, 80, 100])
-        table.setStyle(get_data_table_style())
-        elements.append(table)
+        keywords_table = Table(table_data, colWidths=[30, 135, 55, 80])
+        keywords_table.setStyle(get_data_table_style())
+        left_content.append(keywords_table)
 
-    # Category distribution - wrap header and chart together to prevent orphaning
-    categories = keywords_data.get('categoryDistribution', []) or keywords_data.get('category_distribution', [])
+    # Build right column: Category distribution pie chart
+    right_content = []
     if categories:
-        elements.append(Spacer(1, 40))
-        category_section = [
-            Paragraph("Category Distribution", styles['PinMeToH2']),
-            Spacer(1, 10),
-            create_pie_chart(categories)
-        ]
-        elements.append(KeepTogether(category_section))
+        right_content.append(Paragraph("Category Distribution", styles['PinMeToH2']))
+        right_content.append(Spacer(1, 8))
+        # Smaller pie chart to fit side-by-side (wider to show full legend text)
+        pie_chart = create_pie_chart(categories, width=190, height=160)
+        right_content.append(pie_chart)
+
+    # Create side-by-side layout using a wrapper table
+    if left_content and right_content:
+        # Wrapper table with 2 columns
+        wrapper_data = [[left_content, right_content]]
+        wrapper = Table(wrapper_data, colWidths=[310, 190])
+        wrapper.setStyle(TableStyle([
+            ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+            ('LEFTPADDING', (0, 0), (-1, -1), 0),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 5),
+            ('TOPPADDING', (0, 0), (-1, -1), 0),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
+        ]))
+        elements.append(wrapper)
+    elif left_content:
+        elements.extend(left_content)
+    elif right_content:
+        elements.extend(right_content)
 
     elements.append(PageBreak())
     return elements
@@ -777,7 +977,7 @@ def create_reviews_section(data: dict, styles) -> list:
                 str(theme.get('mentions', '')),
                 theme.get('sentiment', '').title()
             ])
-        table = Table(table_data, colWidths=[150, 80, 100])
+        table = Table(table_data, colWidths=[200, 100, 120])
         table.setStyle(get_data_table_style())
         themes_section = [
             Paragraph("Top Review Themes", styles['PinMeToH2']),
