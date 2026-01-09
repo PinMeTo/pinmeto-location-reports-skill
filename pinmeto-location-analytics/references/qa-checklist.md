@@ -2,6 +2,19 @@
 
 Complete this checklist before delivering any report to ensure quality and accuracy.
 
+## Contents
+
+- [Pre-Generation Checks](#pre-generation-checks)
+- [Data Quality Checks](#data-quality-checks)
+- [Report Content Checks](#report-content-checks)
+- [Branding Compliance](#branding-compliance)
+- [Format-Specific Checks](#format-specific-checks)
+- [Final Review](#final-review)
+- [Issue Resolution](#issue-resolution)
+- [Sign-Off](#sign-off)
+
+---
+
 ## Pre-Generation Checks
 
 ### Request Validation

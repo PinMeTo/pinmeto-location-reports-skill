@@ -68,9 +68,16 @@ const SLIDE = {
 // =============================================================================
 
 /**
- * Generate a bar chart image as base64 data URL
+ * Generate a bar chart image as base64 data URL.
+ * Returns null if data is invalid or empty.
  */
 async function generateBarChartImage(chartData, title, hasPriorData) {
+  // Guard against empty or invalid data
+  if (!chartData || !Array.isArray(chartData) || chartData.length === 0) {
+    console.warn(`Warning: Empty chart data for "${title}", skipping chart`);
+    return null;
+  }
+
   const labels = chartData.map(d => d.label);
   const currentValues = chartData.map(d => d.value);
   const priorValues = chartData.map(d => d.priorValue || 0);
@@ -137,6 +144,12 @@ async function generateBarChartImage(chartData, title, hasPriorData) {
  * Uses square dimensions to prevent distortion
  */
 async function generatePieChartImage(data, title) {
+  // Guard against empty or invalid data
+  if (!data || !Array.isArray(data) || data.length === 0) {
+    console.warn(`Warning: Empty pie chart data for "${title}", skipping chart`);
+    return null;
+  }
+
   // Use square canvas for pie charts to prevent distortion
   const pieChartCanvas = new ChartJSNodeCanvas({ width: 500, height: 500, backgroundColour: "white" });
 
@@ -920,15 +933,39 @@ async function main() {
     process.exit(1);
   }
 
-  // Load data
-  const data = JSON.parse(fs.readFileSync(dataPath, "utf8"));
+  // Load data with error handling
+  let data;
+  try {
+    if (!fs.existsSync(dataPath)) {
+      console.error(`Error: Data file not found: ${dataPath}`);
+      process.exit(1);
+    }
+    data = JSON.parse(fs.readFileSync(dataPath, "utf8"));
+  } catch (e) {
+    if (e instanceof SyntaxError) {
+      console.error(`Error: Invalid JSON in ${dataPath}: ${e.message}`);
+    } else {
+      console.error(`Error reading data file: ${e.message}`);
+    }
+    process.exit(1);
+  }
+
   data.periodType = data.periodType || period;
 
-  // Generate report (async - generates chart images)
-  await generateReport(data, outputPath);
+  // Generate report with error handling
+  try {
+    await generateReport(data, outputPath);
+  } catch (e) {
+    if (e.code === 'EACCES') {
+      console.error(`Error: Cannot write to ${outputPath} - permission denied`);
+    } else {
+      console.error(`Error generating presentation: ${e.message}`);
+    }
+    process.exit(1);
+  }
 }
 
 main().catch(err => {
-  console.error("Fatal error:", err);
+  console.error("Fatal error:", err.message || err);
   process.exit(1);
 });

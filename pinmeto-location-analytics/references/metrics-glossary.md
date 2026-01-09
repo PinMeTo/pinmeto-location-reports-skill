@@ -2,6 +2,18 @@
 
 Complete definitions for all metrics available through PinMeTo Location MCP.
 
+## Contents
+
+- [Google Business Profile Metrics](#google-business-profile-metrics)
+- [Facebook Metrics](#facebook-metrics)
+- [Apple Maps Metrics](#apple-maps-metrics)
+- [Comparison Metrics](#comparison-metrics)
+- [Aggregation Levels](#aggregation-levels)
+- [Industry Benchmarks](#industry-benchmarks-reference)
+- [Data Freshness Notes](#data-freshness-notes)
+
+---
+
 ## Google Business Profile Metrics
 
 ### Views

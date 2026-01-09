@@ -180,8 +180,12 @@ def get_kpi_table_style():
 # Chart Creation
 # =============================================================================
 def create_line_chart(data: list[dict], width=400, height=200) -> Drawing:
-    """Create a branded line chart."""
+    """Create a branded line chart. Returns empty Drawing if data is invalid."""
     drawing = Drawing(width, height)
+
+    # Guard against empty or invalid data
+    if not data or not isinstance(data, list):
+        return drawing
 
     chart = HorizontalLineChart()
     chart.x = 50
@@ -209,8 +213,12 @@ def create_line_chart(data: list[dict], width=400, height=200) -> Drawing:
 
 
 def create_bar_chart(data: list[dict], width=400, height=200) -> Drawing:
-    """Create a branded bar chart with optional comparison period."""
+    """Create a branded bar chart with optional comparison period. Returns empty Drawing if data is invalid."""
     drawing = Drawing(width, height)
+
+    # Guard against empty or invalid data
+    if not data or not isinstance(data, list):
+        return drawing
 
     chart = VerticalBarChart()
     chart.x = 50
@@ -259,8 +267,12 @@ def create_bar_chart(data: list[dict], width=400, height=200) -> Drawing:
 
 
 def create_pie_chart(data: list[dict], width=300, height=200) -> Drawing:
-    """Create a branded pie chart with legend."""
+    """Create a branded pie chart with legend. Returns empty Drawing if data is invalid."""
     drawing = Drawing(width, height)
+
+    # Guard against empty or invalid data
+    if not data or not isinstance(data, list):
+        return drawing
 
     pie = Pie()
     pie.x = 50  # Move pie left to make room for legend
@@ -700,17 +712,33 @@ def main():
 
     args = parser.parse_args()
 
-    # Load data
-    with open(args.data, 'r') as f:
-        data = json.load(f)
+    # Load data with error handling
+    try:
+        with open(args.data, 'r') as f:
+            data = json.load(f)
+    except FileNotFoundError:
+        print(f"Error: Data file not found: {args.data}")
+        return 1
+    except json.JSONDecodeError as e:
+        print(f"Error: Invalid JSON in {args.data}: {e}")
+        return 1
 
     # Add period if not in data
     if 'period_type' not in data:
         data['period_type'] = args.period
 
-    # Generate report
-    generate_report(data, args.output, args.logo)
+    # Generate report with error handling
+    try:
+        generate_report(data, args.output, args.logo)
+        return 0
+    except PermissionError:
+        print(f"Error: Cannot write to {args.output} - permission denied")
+        return 1
+    except Exception as e:
+        print(f"Error generating report: {e}")
+        return 1
 
 
 if __name__ == '__main__':
-    main()
+    import sys
+    sys.exit(main() or 0)

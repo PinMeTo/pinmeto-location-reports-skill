@@ -1,0 +1,80 @@
+[
+  {
+    "name": "quarterly_report_detection",
+    "skills": ["pinmeto-location-analytics"],
+    "query": "Create a quarterly report for Q4 2024",
+    "expected_behavior": [
+      "Detects quarterly report type from 'Q4 2024' pattern",
+      "Calculates correct date range (October 1 - December 31, 2024)",
+      "Fetches data with both QoQ (prior_period) and YoY (prior_year) comparisons",
+      "Generates PDF with 10-18 pages as per quarterly spec",
+      "Includes 15 top keywords as per quarterly limit"
+    ]
+  },
+  {
+    "name": "monthly_pptx_format",
+    "skills": ["pinmeto-location-analytics"],
+    "query": "Generate October 2024 monthly report as PowerPoint",
+    "expected_behavior": [
+      "Detects monthly report type from 'October 2024' pattern",
+      "Generates PPTX format (not PDF)",
+      "Includes MoM comparisons (prior_period)",
+      "Creates 16:9 aspect ratio slides",
+      "Applies PinMeTo brand colors"
+    ]
+  },
+  {
+    "name": "yearly_report_format",
+    "skills": ["pinmeto-location-analytics"],
+    "query": "Generate 2024 annual report for all locations",
+    "expected_behavior": [
+      "Detects yearly report type from '2024' and 'annual' keywords",
+      "Calculates full year date range (January 1 - December 31, 2024)",
+      "Fetches data with YoY comparison only",
+      "Generates PDF with 15-25 pages as per yearly spec",
+      "Includes 25 top keywords as per yearly limit"
+    ]
+  },
+  {
+    "name": "half_yearly_detection",
+    "skills": ["pinmeto-location-analytics"],
+    "query": "Create an H1 2024 executive summary",
+    "expected_behavior": [
+      "Detects half-yearly report type from 'H1' pattern",
+      "Calculates correct date range (January 1 - June 30, 2024)",
+      "Includes HoH comparisons",
+      "Generates executive summary with highlights and KPIs"
+    ]
+  },
+  {
+    "name": "single_location_report",
+    "skills": ["pinmeto-location-analytics"],
+    "query": "Generate Q3 2024 report for Store #47 only",
+    "expected_behavior": [
+      "Detects quarterly report type",
+      "Filters data to specific store_id",
+      "Passes store_id parameter to all MCP tool calls",
+      "Report focuses on single location metrics"
+    ]
+  },
+  {
+    "name": "google_data_lag_warning",
+    "skills": ["pinmeto-location-analytics"],
+    "query": "Create a monthly report for last week's data",
+    "expected_behavior": [
+      "Warns user about Google's ~10-day data lag",
+      "Suggests adjusting end date to at least 10 days ago",
+      "Does not proceed with report until user confirms adjusted dates"
+    ]
+  },
+  {
+    "name": "validation_before_generation",
+    "skills": ["pinmeto-location-analytics"],
+    "query": "Generate a quarterly report from the fetched data",
+    "expected_behavior": [
+      "Runs validate_report_data.py before generating PDF/PPTX",
+      "Reports any validation errors found",
+      "Fixes validation errors before proceeding"
+    ]
+  }
+]

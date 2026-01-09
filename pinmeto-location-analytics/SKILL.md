@@ -1,6 +1,12 @@
 ---
 name: pinmeto-location-analytics
-description: Generate board-ready executive reports (PDF and PowerPoint) from PinMeTo Location Analytics data. Use when users request location performance reports, multi-location brand analytics, Google Business Profile insights, Facebook page metrics, Apple Maps analytics, keyword analysis, rating/review reports, or executive summaries. Supports monthly (8-15 pages), quarterly (10-18 pages), half-yearly (12-20 pages), and yearly (15-25 pages) report formats with period-appropriate comparisons (MoM, QoQ, HoH, YoY). Requires PinMeTo Location MCP server connection.
+description: Generates professional PDF and PowerPoint reports from PinMeTo location analytics data. Use when requesting location performance reports, Google Business insights, Facebook metrics, Apple Maps analytics, keyword analysis, or executive summaries for multi-location brands. Supports monthly, quarterly, half-yearly, and yearly formats.
+allowed-tools:
+  - Read
+  - Glob
+  - Bash(python:*)
+  - Bash(node:*)
+  - Write
 ---
 
 # PinMeTo Location Analytics Reports
@@ -55,104 +61,15 @@ Check before proceeding:
 
 **Google Data Lag Warning:** Google metrics have ~10-day reporting delay. If user requests data from the last 10 days, warn them and suggest adjusting the end date.
 
-### Step 2: Fetch Location Data
+### Steps 2-4: Fetch Data
 
-```
-Tool: pinmeto_get_locations
-Purpose: Get list of all locations with basic info
+See [references/workflow-details.md](references/workflow-details.md) for detailed MCP tool calls:
+- Location data: `pinmeto_get_locations`, `pinmeto_get_location`
+- Google metrics: `pinmeto_get_google_insights`, `pinmeto_get_google_ratings`, `pinmeto_get_google_keywords`, `pinmeto_get_google_reviews`
+- Facebook metrics: `pinmeto_get_facebook_insights`, `pinmeto_get_facebook_brandpage_insights`, `pinmeto_get_facebook_ratings`
+- Apple Maps: `pinmeto_get_apple_insights`
 
-Parameters:
-- fields: ["store_id", "name", "city", "country", "status"]
-- filters: {"status": "active"} (optional - filter to active only)
-```
-
-For single location reports:
-```
-Tool: pinmeto_get_location
-Parameters:
-- store_id: "specific-store-id"
-```
-
-### Step 3: Fetch Google Metrics
-
-**Google Insights (views, searches, actions):**
-```
-Tool: pinmeto_get_google_insights
-Parameters:
-- start_date: "YYYY-MM-DD"
-- end_date: "YYYY-MM-DD"
-- aggregation: "monthly" | "quarterly" | "half_yearly" | "yearly"
-- comparison_type: "prior_period" (MoM/QoQ) OR "prior_year" (YoY)
-- store_id: (optional - omit for all locations)
-```
-
-Call twice: once with `comparison_type: "prior_period"` and once with `comparison_type: "prior_year"` to get both comparison sets.
-
-**Google Ratings:**
-```
-Tool: pinmeto_get_google_ratings
-Parameters:
-- start_date, end_date, aggregation (same as above)
-- store_id: (optional)
-
-Returns: averageRating, totalReviews, distribution (1-5 stars)
-```
-
-**Google Keywords:**
-```
-Tool: pinmeto_get_google_keywords
-Parameters:
-- start_date, end_date
-- limit: 10 (monthly) | 15 (quarterly) | 20 (half-yearly) | 25 (yearly)
-- store_id: (optional)
-
-Process results with keyword classification rules.
-```
-
-**Google Reviews (for sentiment context):**
-```
-Tool: pinmeto_get_google_reviews
-Parameters:
-- start_date, end_date
-- store_id: (optional)
-- limit: 50 (recent reviews for sentiment summary)
-```
-
-### Step 4: Fetch Facebook & Apple Metrics
-
-**Facebook Insights:**
-```
-Tool: pinmeto_get_facebook_insights
-Parameters:
-- start_date, end_date
-- aggregation: same as Google
-- comparison_type: "prior_period" | "prior_year"
-- store_id: (optional)
-```
-
-**Facebook Brandpage Insights (all pages):**
-```
-Tool: pinmeto_get_facebook_brandpage_insights
-Parameters:
-- start_date, end_date
-```
-
-**Facebook Ratings:**
-```
-Tool: pinmeto_get_facebook_ratings
-Parameters:
-- start_date, end_date, aggregation
-- store_id: (optional)
-```
-
-**Apple Maps Insights:**
-```
-Tool: pinmeto_get_apple_insights
-Parameters:
-- start_date, end_date
-- aggregation: same as others
-- store_id: (optional)
-```
+**Key tip:** Call Google/Facebook insights twice (once with `prior_period`, once with `prior_year`) to get both comparison sets.
 
 ### Step 5: Process & Analyze Data
 
@@ -172,6 +89,15 @@ Parameters:
    - Areas needing attention (declining metrics)
    - Trends (improving/declining over time)
 
+### Step 5.5: Validate Data
+
+Run validation before generating report:
+```bash
+python scripts/validate_report_data.py report_data.json
+```
+
+Fix any validation errors before proceeding to generation.
+
 ### Step 6: Generate Report
 
 Read the appropriate reference file for report structure:
@@ -187,37 +113,6 @@ Read the appropriate reference file for report structure:
 ### Step 7: Quality Check
 
 Run through `references/qa-checklist.md` before delivering.
-
-## MCP Tool Reference
-
-### Aggregation Options
-
-| Value | Use Case | Token Reduction |
-|-------|----------|-----------------|
-| `total` | Single aggregate value | Maximum |
-| `daily` | Day-by-day breakdown | None |
-| `weekly` | Weekly trends | ~85% |
-| `monthly` | Monthly reports | ~96% |
-| `quarterly` | Quarterly reports | ~98% |
-| `half_yearly` | H1/H2 reports | ~99% |
-| `yearly` | Annual reports | ~99.7% |
-
-### Comparison Types
-
-| Value | Returns | Use For |
-|-------|---------|---------|
-| `none` | Current period only | Raw data |
-| `prior_period` | MoM, QoQ, HoH comparison | Recent trends |
-| `prior_year` | YoY comparison | Seasonal context |
-
-### Response Fields (with comparison)
-
-When `comparison_type` is set:
-- `value`: Current period metric
-- `priorValue`: Comparison period metric
-- `delta`: Absolute change
-- `deltaPercent`: Percentage change
-- `priorPeriodRange`: Date range of comparison
 
 ## Brand Guidelines
 
@@ -247,6 +142,7 @@ When `comparison_type` is set:
 
 | File | Purpose |
 |------|---------|
+| `references/workflow-details.md` | MCP tool calls and aggregation options |
 | `references/monthly.md` | Monthly report structure (8-15 pages) |
 | `references/quarterly.md` | Quarterly report structure (10-18 pages) |
 | `references/half-yearly.md` | Half-yearly report structure (12-20 pages) |
