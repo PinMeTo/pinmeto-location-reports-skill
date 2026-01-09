@@ -30,6 +30,20 @@ SCRIPT_DIR = Path(__file__).parent
 ASSETS_DIR = SCRIPT_DIR.parent / "assets"
 DEFAULT_LOGO = ASSETS_DIR / "logos" / "PinMeTo_Logo_Landscape.jpg"
 
+def find_logo_path(provided_path=None):
+    """Find logo path with fallback for different environments (e.g., Claude Desktop)."""
+    candidates = [
+        provided_path,  # User-provided path
+        str(DEFAULT_LOGO) if DEFAULT_LOGO.exists() else None,  # Default relative to script
+        "assets/logos/PinMeTo_Logo_Landscape.jpg",  # CWD relative
+        "pinmeto-location-reports/assets/logos/PinMeTo_Logo_Landscape.jpg",
+    ]
+    for path in candidates:
+        if path and os.path.exists(path):
+            return path
+    print(f"Warning: Logo not found. Tried: {[c for c in candidates if c]}")
+    return None
+
 from reportlab.lib import colors
 from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
 from reportlab.lib.pagesizes import A4, landscape
@@ -1127,9 +1141,8 @@ def generate_report(data: dict, output_path: str, logo_path: str = None, is_draf
     # Validate data and print warnings for missing fields
     validate_report_data(data)
 
-    # Use default logo if not provided
-    if logo_path is None and DEFAULT_LOGO.exists():
-        logo_path = str(DEFAULT_LOGO)
+    # Use find_logo_path for robust logo resolution across environments
+    logo_path = find_logo_path(logo_path)
     doc = SimpleDocTemplate(
         output_path,
         pagesize=A4,

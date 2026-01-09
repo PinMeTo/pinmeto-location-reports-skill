@@ -77,6 +77,14 @@ CHART_COLORS = {
 }
 
 # =============================================================================
+# Text Layout Constants (prevents text overlap)
+# =============================================================================
+INSIGHT_BOX_HEIGHT = 0.45   # Height for each insight box in inches (fits 3 lines)
+INSIGHT_SPACING = 0.50      # Vertical spacing between insights in inches
+LINE_HEIGHT_8PT = 0.15      # Approximate line height at 8pt font
+LINE_HEIGHT_10PT = 0.14     # Approximate line height at 10pt font
+
+# =============================================================================
 # Chart Generation Functions (matplotlib)
 # =============================================================================
 def generate_bar_chart_image(chart_data, title, has_prior_data=False, current_label=None, prior_label=None):
@@ -302,6 +310,8 @@ def format_number(value):
 def get_previous_quarter(period):
     """Derive previous quarter from current period string like 'Q4 2025' -> 'Q3 2025'."""
     import re
+    if not period:
+        return "Prior Period"
     match = re.match(r'Q(\d)\s+(\d{4})', period)
     if not match:
         return "Prior Period"
@@ -312,6 +322,37 @@ def get_previous_quarter(period):
     else:
         return f"Q{quarter - 1} {year}"
 
+def find_logo_path(data):
+    """Find logo path with fallback for different environments (e.g., Claude Desktop)."""
+    candidates = [
+        data.get("logoPath"),  # User-provided path
+        str(DEFAULT_LOGO),     # Default relative to script
+        "assets/logos/PinMeTo_Logo_Landscape.jpg",  # CWD relative
+        "pinmeto-location-reports/assets/logos/PinMeTo_Logo_Landscape.jpg",
+    ]
+    for path in candidates:
+        if path and os.path.exists(path):
+            return path
+    print(f"Warning: Logo not found. Tried: {[c for c in candidates if c]}")
+    return None
+
+def estimate_text_height(text, chars_per_line=90, line_height=0.14, min_height=0.3):
+    """Estimate text box height based on content length.
+
+    Args:
+        text: The text content
+        chars_per_line: Approximate characters per line (depends on font size and box width)
+        line_height: Height per line in inches
+        min_height: Minimum box height in inches
+
+    Returns:
+        Estimated height in inches
+    """
+    if not text:
+        return min_height
+    lines = max(1, (len(text) // chars_per_line) + 1)
+    return max(min_height, lines * line_height)
+
 # =============================================================================
 # Slide Creation Functions
 # =============================================================================
@@ -320,9 +361,9 @@ def create_title_slide(prs, data):
     slide_layout = prs.slide_layouts[6]  # Blank layout
     slide = prs.slides.add_slide(slide_layout)
 
-    # Logo - use landscape version
-    logo_path = data.get("logoPath", str(DEFAULT_LOGO))
-    if os.path.exists(logo_path):
+    # Logo - use landscape version with fallback path resolution
+    logo_path = find_logo_path(data)
+    if logo_path:
         slide.shapes.add_picture(logo_path, Inches(0.5), Inches(0.3), width=Inches(1.8))
 
     # Company name - tighter spacing below logo
@@ -388,16 +429,18 @@ def create_executive_summary(prs, data):
     add_text_box(slide, "Executive Summary", Inches(0.5), Inches(0.2), Inches(9), Inches(0.4),
                  font_size=24, font_name=Brand.HEADING_FONT, color=Brand.BLUE, bold=True)
 
-    # Narrative
+    # Narrative - with dynamic height based on content length
     exec_summary = data.get("executiveSummary", {})
     narrative = exec_summary.get("narrative", "")
     start_y = 0.65
     if narrative:
-        add_text_box(slide, narrative, Inches(0.5), Inches(start_y), Inches(9), Inches(0.5),
+        # Calculate narrative height dynamically (90 chars/line at 10pt in 9" width)
+        narrative_height = estimate_text_height(narrative, chars_per_line=90, line_height=LINE_HEIGHT_10PT, min_height=0.3)
+        add_text_box(slide, narrative, Inches(0.5), Inches(start_y), Inches(9), Inches(narrative_height),
                      font_size=10, color=Brand.BLUE_MARINE)
-        start_y = 1.2
+        start_y = start_y + narrative_height + 0.15  # Dynamic positioning below narrative
 
-    # Highlights
+    # Highlights - with increased spacing to allow text wrapping
     highlights = exec_summary.get("highlights", []) or data.get("highlights", [])
     if highlights:
         add_text_box(slide, "Quarter Highlights", Inches(0.5), Inches(start_y),
@@ -405,14 +448,14 @@ def create_executive_summary(prs, data):
                      color=Brand.BLUE_MARINE, bold=True)
 
         for i, highlight in enumerate(highlights[:4]):
-            y = start_y + 0.35 + i * 0.5
+            y = start_y + 0.35 + i * INSIGHT_SPACING  # Use constant for consistent spacing
             if isinstance(highlight, dict):
                 title = highlight.get("title", "")
                 desc = highlight.get("description", "")
                 text = f"• {title}: {desc}" if title and desc else f"• {title or desc}"
             else:
                 text = f"• {highlight}"
-            add_text_box(slide, text, Inches(0.5), Inches(y), Inches(4.5), Inches(0.45),
+            add_text_box(slide, text, Inches(0.5), Inches(y), Inches(4.5), Inches(INSIGHT_BOX_HEIGHT),
                          font_size=9, color=Brand.MID_GREY)
 
     # KPI boxes
@@ -465,16 +508,16 @@ def create_metrics_slide(prs, title, metrics_data, period_info):
     add_text_box(slide, title, Inches(0.5), Inches(0.2), Inches(9), Inches(0.4),
                  font_size=24, font_name=Brand.HEADING_FONT, color=Brand.BLUE, bold=True)
 
-    # Key Insights
+    # Key Insights - with increased spacing to allow text wrapping
     insights = metrics_data.get("insights", [])
     table_start_y = 0.7
     if insights:
         add_text_box(slide, "Key Insights", Inches(0.5), Inches(0.65), Inches(4), Inches(0.25),
                      font_size=10, font_name=Brand.HEADING_FONT, color=Brand.BLUE_MARINE, bold=True)
         for i, insight in enumerate(insights[:3]):
-            add_text_box(slide, f"• {insight}", Inches(0.5), Inches(0.93 + i * 0.22),
-                         Inches(4.3), Inches(0.2), font_size=8, color=Brand.MID_GREY)
-        table_start_y = 0.93 + len(insights[:3]) * 0.22 + 0.1
+            add_text_box(slide, f"• {insight}", Inches(0.5), Inches(0.93 + i * INSIGHT_SPACING),
+                         Inches(4.3), Inches(INSIGHT_BOX_HEIGHT), font_size=8, color=Brand.MID_GREY)
+        table_start_y = 0.93 + len(insights[:3]) * INSIGHT_SPACING + 0.15
 
     # Period footer
     if period_info.get("period"):
@@ -579,16 +622,16 @@ def create_keywords_slide(prs, keywords_data, period_info):
     add_text_box(slide, "Search Keywords Analysis", Inches(0.5), Inches(0.2), Inches(9), Inches(0.4),
                  font_size=24, font_name=Brand.HEADING_FONT, color=Brand.BLUE, bold=True)
 
-    # Key Insights
+    # Key Insights - with increased spacing to allow text wrapping
     insights = keywords_data.get("insights", [])
     table_start_y = 0.7
     if insights:
         add_text_box(slide, "Key Insights", Inches(0.5), Inches(0.65), Inches(4), Inches(0.25),
                      font_size=10, font_name=Brand.HEADING_FONT, color=Brand.BLUE_MARINE, bold=True)
         for i, insight in enumerate(insights[:3]):
-            add_text_box(slide, f"• {insight}", Inches(0.5), Inches(0.93 + i * 0.22),
-                         Inches(4.3), Inches(0.2), font_size=8, color=Brand.MID_GREY)
-        table_start_y = 0.93 + len(insights[:3]) * 0.22 + 0.1
+            add_text_box(slide, f"• {insight}", Inches(0.5), Inches(0.93 + i * INSIGHT_SPACING),
+                         Inches(4.3), Inches(INSIGHT_BOX_HEIGHT), font_size=8, color=Brand.MID_GREY)
+        table_start_y = 0.93 + len(insights[:3]) * INSIGHT_SPACING + 0.15
 
     # Period footer
     if period_info.get("period"):
@@ -675,16 +718,16 @@ def create_reviews_slide(prs, reviews_data, period_info):
     add_text_box(slide, "Review Sentiment Analysis", Inches(0.5), Inches(0.2), Inches(9), Inches(0.4),
                  font_size=24, font_name=Brand.HEADING_FONT, color=Brand.BLUE, bold=True)
 
-    # Key Insights
+    # Key Insights - with increased spacing to allow text wrapping
     insights = reviews_data.get("insights", [])
     content_start_y = 0.7
     if insights:
         add_text_box(slide, "Key Insights", Inches(0.5), Inches(0.65), Inches(4), Inches(0.25),
                      font_size=10, font_name=Brand.HEADING_FONT, color=Brand.BLUE_MARINE, bold=True)
         for i, insight in enumerate(insights[:3]):
-            add_text_box(slide, f"• {insight}", Inches(0.5), Inches(0.93 + i * 0.22),
-                         Inches(4.3), Inches(0.2), font_size=8, color=Brand.MID_GREY)
-        content_start_y = 0.93 + len(insights[:3]) * 0.22 + 0.1
+            add_text_box(slide, f"• {insight}", Inches(0.5), Inches(0.93 + i * INSIGHT_SPACING),
+                         Inches(4.3), Inches(INSIGHT_BOX_HEIGHT), font_size=8, color=Brand.MID_GREY)
+        content_start_y = 0.93 + len(insights[:3]) * INSIGHT_SPACING + 0.15
 
     # Summary stats
     total_reviews = reviews_data.get("totalReviews", 0)
