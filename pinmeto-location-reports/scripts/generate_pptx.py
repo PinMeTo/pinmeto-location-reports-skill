@@ -109,6 +109,21 @@ def generate_bar_chart_image(chart_data, title, has_prior_data=False, current_la
         bars2 = ax.bar([i + width/2 for i in x], prior_values, width,
                        label=prior_legend, color=CHART_COLORS['light_blue'])
 
+    # Add value labels above current period bars
+    for bar in bars1:
+        height_val = bar.get_height()
+        ax.text(bar.get_x() + bar.get_width() / 2, height_val,
+                f'{int(height_val):,}', ha='center', va='bottom', fontsize=8,
+                color='#001334')
+
+    # Add value labels above prior period bars if present
+    if has_prior_data:
+        for bar in bars2:
+            height_val = bar.get_height()
+            ax.text(bar.get_x() + bar.get_width() / 2, height_val,
+                    f'{int(height_val):,}', ha='center', va='bottom', fontsize=8,
+                    color='#666666')
+
     ax.set_ylabel('Value', fontsize=10)
     ax.set_title(title, fontsize=14, fontweight='bold', color=CHART_COLORS['mid_grey'])
     ax.set_xticks(x)
