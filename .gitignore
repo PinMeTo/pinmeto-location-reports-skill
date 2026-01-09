@@ -13,3 +13,6 @@ pinmeto_*_data.json
 
 # macOS
 .DS_Store
+
+# Local docs/assets
+docs/
