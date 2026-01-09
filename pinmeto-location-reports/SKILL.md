@@ -189,7 +189,7 @@ Read the appropriate reference file for report structure:
 
 **For PDF:** Use `scripts/generate_pdf.py` patterns or generate with reportlab directly.
 
-**For PPTX:** Use html2pptx workflow with `assets/templates/` for slide layouts.
+**For PPTX:** Use `scripts/generate_pptx.js` with PptxGenJS. Run: `node scripts/generate_pptx.js --data report_data.json --output report.pptx --period [quarterly|monthly|half-yearly|yearly]`
 
 ### Step 7: Quality Check
 
