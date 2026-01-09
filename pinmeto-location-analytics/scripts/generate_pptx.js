@@ -738,24 +738,25 @@ async function createReviewsSlide(pptx, reviewsData, periodInfo) {
       ]);
     });
 
-    slide.addTable(tableData, {
-      x: 4,
-      y: 1.2,
-      w: 5.5,
-      fontFace: BRAND.fonts.body,
-      fontSize: 9,
-      border: { pt: 0.5, color: BRAND.colors.lightBlue },
-    });
-
+    // Add label above the table
     slide.addText("Top Review Themes", {
       x: 4,
-      y: 3.6,
+      y: 1.0,
       w: 5.5,
       h: 0.3,
       fontSize: 10,
       fontFace: BRAND.fonts.body,
       color: BRAND.colors.midGrey,
       align: "center",
+    });
+
+    slide.addTable(tableData, {
+      x: 4,
+      y: 1.35,
+      w: 5.5,
+      fontFace: BRAND.fonts.body,
+      fontSize: 9,
+      border: { pt: 0.5, color: BRAND.colors.lightBlue },
     });
   }
 }
