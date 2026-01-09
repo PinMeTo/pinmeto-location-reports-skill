@@ -336,51 +336,102 @@ function createExecutiveSummary(pptx, data) {
   // Title
   slide.addText("Executive Summary", {
     x: 0.5,
-    y: 0.3,
+    y: 0.2,
     w: 9,
-    h: 0.5,
+    h: 0.4,
     fontSize: 24,
     fontFace: BRAND.fonts.heading,
     color: BRAND.colors.blue,
     bold: true,
   });
 
-  // Key highlights
-  const highlights = data.highlights || [];
-  if (highlights.length > 0) {
-    slide.addText("Key Highlights", {
+  // Narrative text (new format)
+  const execSummary = data.executiveSummary || {};
+  const narrative = execSummary.narrative || "";
+  if (narrative) {
+    slide.addText(narrative, {
       x: 0.5,
-      y: 0.9,
-      w: 4,
-      h: 0.3,
-      fontSize: 14,
+      y: 0.65,
+      w: 9,
+      h: 0.5,
+      fontSize: 10,
+      fontFace: BRAND.fonts.body,
+      color: BRAND.colors.blueMarine,
+    });
+  }
+
+  // Structured highlights with title + description (new format)
+  const structuredHighlights = execSummary.highlights || [];
+  const startY = narrative ? 1.2 : 0.9;
+
+  if (structuredHighlights.length > 0) {
+    slide.addText("Quarter Highlights", {
+      x: 0.5,
+      y: startY,
+      w: 4.5,
+      h: 0.25,
+      fontSize: 12,
       fontFace: BRAND.fonts.heading,
       color: BRAND.colors.blueMarine,
       bold: true,
     });
 
-    highlights.forEach((highlight, i) => {
-      slide.addText(`• ${highlight}`, {
+    structuredHighlights.slice(0, 4).forEach((highlight, i) => {
+      const title = highlight.title || "";
+      const description = highlight.description || "";
+      const text = title && description ? [
+        { text: `• ${title}: `, options: { bold: true } },
+        { text: description }
+      ] : `• ${title || description}`;
+
+      slide.addText(text, {
         x: 0.5,
-        y: 1.3 + i * 0.35,
+        y: startY + 0.35 + i * 0.5,
         w: 4.5,
-        h: 0.3,
-        fontSize: 11,
+        h: 0.45,
+        fontSize: 9,
         fontFace: BRAND.fonts.body,
         color: BRAND.colors.midGrey,
       });
     });
+  } else {
+    // Fallback to legacy highlights format
+    const highlights = data.highlights || [];
+    if (highlights.length > 0) {
+      slide.addText("Key Highlights", {
+        x: 0.5,
+        y: startY,
+        w: 4,
+        h: 0.3,
+        fontSize: 14,
+        fontFace: BRAND.fonts.heading,
+        color: BRAND.colors.blueMarine,
+        bold: true,
+      });
+
+      highlights.forEach((highlight, i) => {
+        slide.addText(`• ${highlight}`, {
+          x: 0.5,
+          y: startY + 0.4 + i * 0.35,
+          w: 4.5,
+          h: 0.3,
+          fontSize: 11,
+          fontFace: BRAND.fonts.body,
+          color: BRAND.colors.midGrey,
+        });
+      });
+    }
   }
 
-  // KPI boxes
+  // KPI boxes (right side)
   const kpis = data.kpis || [];
   if (kpis.length > 0) {
     slide.addText("Performance Metrics", {
       x: 5.5,
-      y: 0.9,
+      y: startY,
       w: 4,
-      h: 0.3,
-      fontSize: 14,
+      h: 0.25,
+      fontSize: 12,
       fontFace: BRAND.fonts.heading,
       color: BRAND.colors.blueMarine,
       bold: true,
@@ -390,14 +441,14 @@ function createExecutiveSummary(pptx, data) {
       const col = i % 2;
       const row = Math.floor(i / 2);
       const x = 5.5 + col * 2.2;
-      const y = 1.3 + row * 1.5;
+      const y = startY + 0.35 + row * 1.4;
 
       // KPI box
       slide.addShape(pptx.ShapeType.rect, {
         x: x,
         y: y,
         w: 2,
-        h: 1.3,
+        h: 1.2,
         fill: { color: BRAND.colors.grey },
         line: { color: BRAND.colors.lightBlue, width: 1 },
       });
@@ -405,10 +456,10 @@ function createExecutiveSummary(pptx, data) {
       // KPI value
       slide.addText(kpi.value || "N/A", {
         x: x,
-        y: y + 0.2,
+        y: y + 0.15,
         w: 2,
-        h: 0.5,
-        fontSize: 20,
+        h: 0.45,
+        fontSize: 18,
         fontFace: BRAND.fonts.heading,
         color: BRAND.colors.blue,
         bold: true,
@@ -418,10 +469,10 @@ function createExecutiveSummary(pptx, data) {
       // KPI label
       slide.addText(kpi.name || "", {
         x: x,
-        y: y + 0.7,
+        y: y + 0.6,
         w: 2,
-        h: 0.25,
-        fontSize: 9,
+        h: 0.22,
+        fontSize: 8,
         fontFace: BRAND.fonts.body,
         color: BRAND.colors.midGrey,
         align: "center",
@@ -434,16 +485,49 @@ function createExecutiveSummary(pptx, data) {
           : "27ae60";
       slide.addText(kpi.change || "", {
         x: x,
-        y: y + 0.95,
+        y: y + 0.85,
         w: 2,
         h: 0.2,
-        fontSize: 10,
+        fontSize: 9,
         fontFace: BRAND.fonts.body,
         color: changeColor,
         align: "center",
       });
     });
   }
+}
+
+// =============================================================================
+// Helper: Add Key Insights to slide
+// =============================================================================
+function addKeyInsights(slide, insights, startY) {
+  if (!insights || insights.length === 0) return startY;
+
+  slide.addText("Key Insights", {
+    x: 0.5,
+    y: startY,
+    w: 4,
+    h: 0.25,
+    fontSize: 10,
+    fontFace: BRAND.fonts.heading,
+    color: BRAND.colors.blueMarine,
+    bold: true,
+  });
+
+  insights.slice(0, 3).forEach((insight, i) => {
+    slide.addText(`• ${insight}`, {
+      x: 0.5,
+      y: startY + 0.28 + i * 0.22,
+      w: 4.3,
+      h: 0.2,
+      fontSize: 8,
+      fontFace: BRAND.fonts.body,
+      color: BRAND.colors.midGrey,
+    });
+  });
+
+  // Return the new Y position after insights
+  return startY + 0.28 + insights.slice(0, 3).length * 0.22 + 0.1;
 }
 
 // =============================================================================
@@ -455,14 +539,21 @@ async function createMetricsSlide(pptx, title, metricsData, periodInfo) {
   // Title
   slide.addText(title, {
     x: 0.5,
-    y: 0.3,
+    y: 0.2,
     w: 9,
-    h: 0.5,
+    h: 0.4,
     fontSize: 24,
     fontFace: BRAND.fonts.heading,
     color: BRAND.colors.blue,
     bold: true,
   });
+
+  // Key Insights (if available)
+  const insights = metricsData.insights || [];
+  let tableStartY = 0.7;
+  if (insights.length > 0) {
+    tableStartY = addKeyInsights(slide, insights, 0.65);
+  }
 
   // Period in footer (center, non-intrusive)
   if (periodInfo && periodInfo.period) {
@@ -505,7 +596,7 @@ async function createMetricsSlide(pptx, title, metricsData, periodInfo) {
 
     slide.addTable(tableData, {
       x: 0.5,
-      y: 1,
+      y: tableStartY,
       w: 4.3,
       fontFace: BRAND.fonts.body,
       fontSize: 9,
@@ -525,7 +616,7 @@ async function createMetricsSlide(pptx, title, metricsData, periodInfo) {
     slide.addImage({
       data: chartImage,
       x: 5,
-      y: 1,
+      y: tableStartY,
       w: 4.5,
       h: 3.5,
     });
@@ -541,14 +632,21 @@ async function createKeywordsSlide(pptx, keywordsData, periodInfo) {
   // Title
   slide.addText("Search Keywords Analysis", {
     x: 0.5,
-    y: 0.3,
+    y: 0.2,
     w: 9,
-    h: 0.5,
+    h: 0.4,
     fontSize: 24,
     fontFace: BRAND.fonts.heading,
     color: BRAND.colors.blue,
     bold: true,
   });
+
+  // Key Insights (if available)
+  const insights = keywordsData.insights || [];
+  let tableStartY = 0.7;
+  if (insights.length > 0) {
+    tableStartY = addKeyInsights(slide, insights, 0.65);
+  }
 
   // Period in footer (center, non-intrusive)
   if (periodInfo && periodInfo.period) {
@@ -591,7 +689,7 @@ async function createKeywordsSlide(pptx, keywordsData, periodInfo) {
 
     slide.addTable(tableData, {
       x: 0.5,
-      y: 0.9,
+      y: tableStartY,
       w: 5.5,
       fontFace: BRAND.fonts.body,
       fontSize: 9,
@@ -608,7 +706,7 @@ async function createKeywordsSlide(pptx, keywordsData, periodInfo) {
     slide.addImage({
       data: chartImage,
       x: 6.2,
-      y: 0.9,
+      y: tableStartY,
       w: 3.2,
       h: 3.2,
     });
@@ -626,14 +724,21 @@ async function createReviewsSlide(pptx, reviewsData, periodInfo) {
   // Title
   slide.addText("Review Sentiment Analysis", {
     x: 0.5,
-    y: 0.3,
+    y: 0.2,
     w: 9,
-    h: 0.5,
+    h: 0.4,
     fontSize: 24,
     fontFace: BRAND.fonts.heading,
     color: BRAND.colors.blue,
     bold: true,
   });
+
+  // Key Insights (if available)
+  const insights = reviewsData.insights || [];
+  let contentStartY = 0.7;
+  if (insights.length > 0) {
+    contentStartY = addKeyInsights(slide, insights, 0.65);
+  }
 
   // Period in footer (center, non-intrusive)
   if (periodInfo && periodInfo.period) {
@@ -659,10 +764,10 @@ async function createReviewsSlide(pptx, reviewsData, periodInfo) {
 
   slide.addText(`Total Reviews: ${totalReviews.toLocaleString()}  |  Average Rating: ${avgRating} (${ratingChange})`, {
     x: 0.5,
-    y: 0.85,
+    y: contentStartY,
     w: 9,
-    h: 0.3,
-    fontSize: 11,
+    h: 0.25,
+    fontSize: 10,
     fontFace: BRAND.fonts.body,
     color: BRAND.colors.midGrey,
   });
@@ -709,9 +814,9 @@ async function createReviewsSlide(pptx, reviewsData, periodInfo) {
     slide.addImage({
       data: chartImage,
       x: 0.5,
-      y: 1.2,
-      w: 3,
-      h: 3,
+      y: contentStartY + 0.35,
+      w: 2.8,
+      h: 2.8,
     });
   }
 
@@ -741,9 +846,9 @@ async function createReviewsSlide(pptx, reviewsData, periodInfo) {
     // Add label above the table
     slide.addText("Top Review Themes", {
       x: 4,
-      y: 1.0,
+      y: contentStartY + 0.25,
       w: 5.5,
-      h: 0.3,
+      h: 0.25,
       fontSize: 10,
       fontFace: BRAND.fonts.body,
       color: BRAND.colors.midGrey,
@@ -752,7 +857,7 @@ async function createReviewsSlide(pptx, reviewsData, periodInfo) {
 
     slide.addTable(tableData, {
       x: 4,
-      y: 1.35,
+      y: contentStartY + 0.55,
       w: 5.5,
       fontFace: BRAND.fonts.body,
       fontSize: 9,
@@ -846,6 +951,182 @@ function createRecommendationsSlide(pptx, recommendations) {
 }
 
 // =============================================================================
+// Appendix Slide
+// =============================================================================
+function createAppendixSlide(pptx, appendixData) {
+  if (!appendixData) return;
+
+  const slide = pptx.addSlide({ masterName: "PINMETO_MASTER" });
+
+  // Title
+  slide.addText("Appendix: Data & Methodology", {
+    x: 0.5,
+    y: 0.2,
+    w: 9,
+    h: 0.4,
+    fontSize: 24,
+    fontFace: BRAND.fonts.heading,
+    color: BRAND.colors.blue,
+    bold: true,
+  });
+
+  // Left column (Data Sources + Reporting Period)
+  let leftY = 0.7;
+
+  // Data Sources
+  const dataSources = appendixData.dataSources || [];
+  if (dataSources.length > 0) {
+    slide.addText("Data Sources", {
+      x: 0.5,
+      y: leftY,
+      w: 4.5,
+      h: 0.25,
+      fontSize: 11,
+      fontFace: BRAND.fonts.heading,
+      color: BRAND.colors.blueMarine,
+      bold: true,
+    });
+    leftY += 0.3;
+
+    dataSources.forEach((source) => {
+      slide.addText(`• ${source}`, {
+        x: 0.5,
+        y: leftY,
+        w: 4.5,
+        h: 0.2,
+        fontSize: 9,
+        fontFace: BRAND.fonts.body,
+        color: BRAND.colors.midGrey,
+      });
+      leftY += 0.22;
+    });
+    leftY += 0.15;
+  }
+
+  // Reporting Period
+  const reportingPeriod = appendixData.reportingPeriod || {};
+  if (Object.keys(reportingPeriod).length > 0) {
+    slide.addText("Reporting Period", {
+      x: 0.5,
+      y: leftY,
+      w: 4.5,
+      h: 0.25,
+      fontSize: 11,
+      fontFace: BRAND.fonts.heading,
+      color: BRAND.colors.blueMarine,
+      bold: true,
+    });
+    leftY += 0.3;
+
+    if (reportingPeriod.quarter) {
+      slide.addText(`Quarter: ${reportingPeriod.quarter}`, {
+        x: 0.5, y: leftY, w: 4.5, h: 0.18,
+        fontSize: 9, fontFace: BRAND.fonts.body, color: BRAND.colors.midGrey,
+      });
+      leftY += 0.2;
+    }
+    if (reportingPeriod.dateRange) {
+      slide.addText(`Date Range: ${reportingPeriod.dateRange}`, {
+        x: 0.5, y: leftY, w: 4.5, h: 0.18,
+        fontSize: 9, fontFace: BRAND.fonts.body, color: BRAND.colors.midGrey,
+      });
+      leftY += 0.2;
+    }
+    if (reportingPeriod.dataFreshness) {
+      slide.addText(`Data Freshness: As of ${reportingPeriod.dataFreshness}`, {
+        x: 0.5, y: leftY, w: 4.5, h: 0.18,
+        fontSize: 9, fontFace: BRAND.fonts.body, color: BRAND.colors.midGrey,
+      });
+      leftY += 0.2;
+    }
+    if (reportingPeriod.lagNote) {
+      slide.addText(`Note: ${reportingPeriod.lagNote}`, {
+        x: 0.5, y: leftY, w: 4.5, h: 0.35,
+        fontSize: 8, fontFace: BRAND.fonts.body, color: BRAND.colors.midGrey,
+        italic: true,
+      });
+    }
+  }
+
+  // Right column (Calculation Notes + Location Coverage)
+  let rightY = 0.7;
+
+  // Calculation Notes
+  const calcNotes = appendixData.calculationNotes || [];
+  if (calcNotes.length > 0) {
+    slide.addText("Calculation Notes", {
+      x: 5.2,
+      y: rightY,
+      w: 4.5,
+      h: 0.25,
+      fontSize: 11,
+      fontFace: BRAND.fonts.heading,
+      color: BRAND.colors.blueMarine,
+      bold: true,
+    });
+    rightY += 0.3;
+
+    calcNotes.forEach((note) => {
+      slide.addText(`• ${note}`, {
+        x: 5.2,
+        y: rightY,
+        w: 4.5,
+        h: 0.35,
+        fontSize: 8,
+        fontFace: BRAND.fonts.body,
+        color: BRAND.colors.midGrey,
+      });
+      rightY += 0.32;
+    });
+    rightY += 0.1;
+  }
+
+  // Location Coverage
+  const locCoverage = appendixData.locationCoverage || {};
+  if (Object.keys(locCoverage).length > 0) {
+    slide.addText("Location Coverage", {
+      x: 5.2,
+      y: rightY,
+      w: 4.5,
+      h: 0.25,
+      fontSize: 11,
+      fontFace: BRAND.fonts.heading,
+      color: BRAND.colors.blueMarine,
+      bold: true,
+    });
+    rightY += 0.3;
+
+    if (locCoverage.totalLocations) {
+      slide.addText(`Total Locations: ${locCoverage.totalLocations} active locations`, {
+        x: 5.2, y: rightY, w: 4.5, h: 0.18,
+        fontSize: 9, fontFace: BRAND.fonts.body, color: BRAND.colors.midGrey,
+      });
+      rightY += 0.2;
+    }
+    if (locCoverage.geographicCoverage) {
+      slide.addText(`Geographic Coverage: ${locCoverage.geographicCoverage}`, {
+        x: 5.2, y: rightY, w: 4.5, h: 0.35,
+        fontSize: 9, fontFace: BRAND.fonts.body, color: BRAND.colors.midGrey,
+      });
+      rightY += 0.35;
+    }
+    if (locCoverage.locationsWithGoogleData) {
+      slide.addText(`Locations with Google Data: ${locCoverage.locationsWithGoogleData}`, {
+        x: 5.2, y: rightY, w: 4.5, h: 0.18,
+        fontSize: 9, fontFace: BRAND.fonts.body, color: BRAND.colors.midGrey,
+      });
+      rightY += 0.2;
+    }
+    if (locCoverage.locationsWithReviews) {
+      slide.addText(`Locations with Reviews: ${locCoverage.locationsWithReviews}`, {
+        x: 5.2, y: rightY, w: 4.5, h: 0.18,
+        fontSize: 9, fontFace: BRAND.fonts.body, color: BRAND.colors.midGrey,
+      });
+    }
+  }
+}
+
+// =============================================================================
 // Main Generation Function
 // =============================================================================
 async function generateReport(data, outputPath) {
@@ -893,6 +1174,11 @@ async function generateReport(data, outputPath) {
   // Recommendations
   if (data.recommendations && data.recommendations.length > 0) {
     createRecommendationsSlide(pptx, data.recommendations);
+  }
+
+  // Appendix (Data & Methodology)
+  if (data.appendix) {
+    createAppendixSlide(pptx, data.appendix);
   }
 
   // Save presentation

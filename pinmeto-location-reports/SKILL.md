@@ -212,6 +212,30 @@ The PDF/PPTX generators expect data in this exact structure. **Field names must 
 }
 ```
 
+### Executive Summary (Required)
+
+The executive summary provides a narrative overview and structured highlights:
+
+```json
+"executiveSummary": {
+  "narrative": "Q4 2025 demonstrated strong growth across key visibility metrics. Total views increased significantly driven by exceptional growth in desktop maps visibility (+43% QoQ, +712% YoY). Customer actions remained robust with direction requests up 17% quarter-over-quarter.",
+  "highlights": [
+    {
+      "title": "Outstanding Maps Growth",
+      "description": "Desktop maps impressions surged 712% year-over-year, indicating significantly improved local search visibility."
+    },
+    {
+      "title": "Strong Action Growth",
+      "description": "Website clicks increased 85% quarter-over-quarter, showing improved engagement and conversion potential."
+    }
+  ]
+}
+```
+
+**Fields:**
+- `narrative`: 2-3 sentence summary of the period's performance
+- `highlights`: Array of key achievements, each with `title` and `description`
+
 ### KPIs Array
 
 Each KPI **must** have a `name` field:
@@ -227,10 +251,15 @@ Each KPI **must** have a `name` field:
 
 ### Platform Metrics (google, facebook, apple)
 
-Each metric **must** have `name`, `value`, `periodChange`, and `yearChange`:
+Each platform section **must** have `insights` (key findings) and `metrics`. Each metric **must** have `name`, `value`, `periodChange`, and `yearChange`:
 
 ```json
 "google": {
+  "insights": [
+    "Desktop maps views drove 60% of total impressions, up from 35% last quarter",
+    "Direction requests show strong purchase intent with +17% QoQ growth",
+    "Phone calls declined 3% QoQ but remain 5% above prior year levels"
+  ],
   "metrics": [
     {"name": "Total Views", "value": 4200, "periodChange": "+8%", "yearChange": "+15%"},
     {"name": "Search Impressions", "value": 831, "periodChange": "+5%", "yearChange": "+18%"},
@@ -243,10 +272,20 @@ Each metric **must** have `name`, `value`, `periodChange`, and `yearChange`:
 }
 ```
 
+**Key Insights Guidelines:**
+- Include 2-3 insights per platform
+- Focus on significant changes, trends, or notable patterns
+- Reference specific metrics and percentage changes
+
 ### Keywords
 
 ```json
 "keywords": {
+  "insights": [
+    "Branded searches account for 52% of impressions, indicating strong brand awareness",
+    "Discovery keywords grew 15% YoY, showing expanding market reach",
+    "Navigational searches suggest loyal customer base returning via direct search"
+  ],
   "topKeywords": [
     {"keyword": "brand name", "impressions": 1973, "category": "Branded"},
     {"keyword": "service type", "impressions": 201, "category": "Discovery"}
@@ -263,6 +302,11 @@ Each metric **must** have `name`, `value`, `periodChange`, and `yearChange`:
 
 ```json
 "reviews": {
+  "insights": [
+    "Customer service consistently praised with 89 positive mentions",
+    "Wait times flagged as key improvement area with 45 negative mentions",
+    "Value perception strong with 56 positive mentions on pricing"
+  ],
   "totalReviews": 4,
   "averageRating": 3.2,
   "ratingChange": "No change",
@@ -289,6 +333,45 @@ Each metric **must** have `name`, `value`, `periodChange`, and `yearChange`:
   }
 ]
 ```
+
+### Appendix (Required)
+
+The appendix provides data transparency and methodology documentation:
+
+```json
+"appendix": {
+  "dataSources": [
+    "Google Business Profile via PinMeTo API",
+    "Facebook Pages via PinMeTo API",
+    "Apple Maps Connect via PinMeTo API"
+  ],
+  "reportingPeriod": {
+    "quarter": "Q4 2025",
+    "dateRange": "October 1, 2025 - December 31, 2025",
+    "dataFreshness": "January 9, 2026",
+    "lagNote": "Google data has approximately 10-day reporting lag. Data for late December may be incomplete."
+  },
+  "calculationNotes": [
+    "YoY (Year-over-Year) comparisons use Q4 2024 as the baseline",
+    "QoQ (Quarter-over-Quarter) comparisons use Q3 2025 as the baseline",
+    "Percentage changes calculated as: ((current - previous) / previous) × 100",
+    "Average ratings are weighted by review count across locations",
+    "Keyword categories assigned based on brand name presence and search intent"
+  ],
+  "locationCoverage": {
+    "totalLocations": 45,
+    "geographicCoverage": "12 countries (Sweden, Finland, Norway, Denmark, Germany, Netherlands, Belgium, France, UK, Spain, Portugal, Poland)",
+    "locationsWithGoogleData": 45,
+    "locationsWithReviews": 38
+  }
+}
+```
+
+**Fields:**
+- `dataSources`: List of data sources used in the report
+- `reportingPeriod`: Quarter, date range, data freshness date, and any lag notes
+- `calculationNotes`: Methodology explanations for metrics and comparisons
+- `locationCoverage`: Total locations, geographic scope, and data availability
 
 **Critical:** If `name` field is missing from metrics, the table will show blank labels. If `periodChange`/`yearChange` are missing, columns will show "N/A".
 

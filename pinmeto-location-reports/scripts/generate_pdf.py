@@ -129,6 +129,50 @@ def get_pinmeto_styles():
         alignment=TA_CENTER,
     ))
 
+    # Narrative/summary text
+    styles.add(ParagraphStyle(
+        name='PinMeToNarrative',
+        fontName='Helvetica',
+        fontSize=11,
+        textColor=PINMETO_BLUE_MARINE,
+        spaceBefore=10,
+        spaceAfter=15,
+        leading=16,
+    ))
+
+    # Insight bullet point
+    styles.add(ParagraphStyle(
+        name='PinMeToInsight',
+        fontName='Helvetica',
+        fontSize=9,
+        textColor=PINMETO_MID_GREY,
+        spaceBefore=3,
+        spaceAfter=3,
+        leftIndent=15,
+        leading=12,
+    ))
+
+    # Appendix section header
+    styles.add(ParagraphStyle(
+        name='PinMeToAppendixH2',
+        fontName='Helvetica-Bold',
+        fontSize=11,
+        textColor=PINMETO_BLUE,
+        spaceBefore=12,
+        spaceAfter=6,
+    ))
+
+    # Appendix body text (smaller)
+    styles.add(ParagraphStyle(
+        name='PinMeToAppendixBody',
+        fontName='Helvetica',
+        fontSize=9,
+        textColor=PINMETO_MID_GREY,
+        spaceBefore=2,
+        spaceAfter=2,
+        leading=11,
+    ))
+
     return styles
 
 
@@ -482,17 +526,38 @@ def create_cover_page(data: dict, styles, logo_path: str = None) -> list:
 
 
 def create_executive_summary(data: dict, styles) -> list:
-    """Create executive summary section."""
+    """Create executive summary section with narrative, highlights, and KPIs."""
     elements = []
 
     elements.append(Paragraph("Executive Summary", styles['PinMeToH1']))
 
-    # Key highlights
-    highlights = data.get('highlights', [])
-    if highlights:
-        elements.append(Paragraph("Key Highlights", styles['PinMeToH2']))
-        for highlight in highlights:
-            elements.append(Paragraph(f"• {highlight}", styles['PinMeToBody']))
+    # Executive summary narrative (new format)
+    exec_summary = data.get('executiveSummary', {})
+    narrative = exec_summary.get('narrative', '')
+    if narrative:
+        elements.append(Paragraph(narrative, styles['PinMeToNarrative']))
+
+    # Structured highlights with title + description (new format)
+    structured_highlights = exec_summary.get('highlights', [])
+    if structured_highlights:
+        elements.append(Paragraph("Quarter Highlights", styles['PinMeToH2']))
+        for highlight in structured_highlights:
+            title = highlight.get('title', '')
+            description = highlight.get('description', '')
+            if title and description:
+                elements.append(Paragraph(
+                    f"• <b>{title}:</b> {description}",
+                    styles['PinMeToBody']
+                ))
+            elif title:
+                elements.append(Paragraph(f"• <b>{title}</b>", styles['PinMeToBody']))
+    else:
+        # Fallback to legacy highlights format
+        highlights = data.get('highlights', [])
+        if highlights:
+            elements.append(Paragraph("Key Highlights", styles['PinMeToH2']))
+            for highlight in highlights:
+                elements.append(Paragraph(f"• {highlight}", styles['PinMeToBody']))
 
     # KPI summary table
     kpis = data.get('kpis', [])
@@ -517,6 +582,22 @@ def create_executive_summary(data: dict, styles) -> list:
     return elements
 
 
+def create_section_insights(insights: list, styles) -> list:
+    """Create a key insights box for a section."""
+    elements = []
+    if not insights:
+        return elements
+
+    elements.append(Paragraph("Key Insights", styles['PinMeToH2']))
+
+    # Create insights as styled bullet points
+    for insight in insights:
+        elements.append(Paragraph(f"• {insight}", styles['PinMeToInsight']))
+
+    elements.append(Spacer(1, 15))
+    return elements
+
+
 def create_metrics_section(data: dict, platform: str, styles) -> list:
     """Create platform-specific metrics section."""
     elements = []
@@ -534,7 +615,12 @@ def create_metrics_section(data: dict, platform: str, styles) -> list:
     display_name = platform_names.get(platform, platform.title())
 
     elements.append(Paragraph(f"{display_name} Performance", styles['PinMeToH1']))
-    elements.append(Spacer(1, 15))
+
+    # Key insights for this platform
+    insights = platform_data.get('insights', [])
+    elements.extend(create_section_insights(insights, styles))
+
+    elements.append(Spacer(1, 10))
 
     # Metrics table
     metrics = platform_data.get('metrics', [])
@@ -572,7 +658,12 @@ def create_keywords_section(data: dict, styles) -> list:
         return elements
 
     elements.append(Paragraph("Search Keywords Analysis", styles['PinMeToH1']))
-    elements.append(Spacer(1, 15))
+
+    # Key insights for keywords
+    insights = keywords_data.get('insights', [])
+    elements.extend(create_section_insights(insights, styles))
+
+    elements.append(Spacer(1, 10))
 
     # Top keywords table
     top_keywords = keywords_data.get('topKeywords', []) or keywords_data.get('top_keywords', [])
@@ -617,7 +708,12 @@ def create_reviews_section(data: dict, styles) -> list:
         return elements
 
     elements.append(Paragraph("Review Sentiment Analysis", styles['PinMeToH1']))
-    elements.append(Spacer(1, 15))
+
+    # Key insights for reviews
+    insights = reviews_data.get('insights', [])
+    elements.extend(create_section_insights(insights, styles))
+
+    elements.append(Spacer(1, 10))
 
     # Summary stats
     total = reviews_data.get('totalReviews', 0)
@@ -697,6 +793,74 @@ def create_recommendations_section(data: dict, styles) -> list:
     return elements
 
 
+def create_appendix(data: dict, styles) -> list:
+    """Create appendix section with data sources, methodology, and location coverage."""
+    elements = []
+
+    appendix_data = data.get('appendix', {})
+    if not appendix_data:
+        return elements
+
+    elements.append(PageBreak())
+    elements.append(Paragraph("Appendix: Data & Methodology", styles['PinMeToH1']))
+    elements.append(Spacer(1, 15))
+
+    # Data Sources
+    data_sources = appendix_data.get('dataSources', [])
+    if data_sources:
+        elements.append(Paragraph("Data Sources", styles['PinMeToAppendixH2']))
+        for source in data_sources:
+            elements.append(Paragraph(f"• {source}", styles['PinMeToAppendixBody']))
+        elements.append(Spacer(1, 10))
+
+    # Reporting Period
+    reporting_period = appendix_data.get('reportingPeriod', {})
+    if reporting_period:
+        elements.append(Paragraph("Reporting Period", styles['PinMeToAppendixH2']))
+        quarter = reporting_period.get('quarter', '')
+        date_range = reporting_period.get('dateRange', '')
+        data_freshness = reporting_period.get('dataFreshness', '')
+        lag_note = reporting_period.get('lagNote', '')
+
+        if quarter:
+            elements.append(Paragraph(f"<b>Quarter:</b> {quarter}", styles['PinMeToAppendixBody']))
+        if date_range:
+            elements.append(Paragraph(f"<b>Date Range:</b> {date_range}", styles['PinMeToAppendixBody']))
+        if data_freshness:
+            elements.append(Paragraph(f"<b>Data Freshness:</b> As of {data_freshness}", styles['PinMeToAppendixBody']))
+        if lag_note:
+            elements.append(Paragraph(f"<i>Note: {lag_note}</i>", styles['PinMeToAppendixBody']))
+        elements.append(Spacer(1, 10))
+
+    # Calculation Notes
+    calc_notes = appendix_data.get('calculationNotes', [])
+    if calc_notes:
+        elements.append(Paragraph("Calculation Notes", styles['PinMeToAppendixH2']))
+        for note in calc_notes:
+            elements.append(Paragraph(f"• {note}", styles['PinMeToAppendixBody']))
+        elements.append(Spacer(1, 10))
+
+    # Location Coverage
+    location_coverage = appendix_data.get('locationCoverage', {})
+    if location_coverage:
+        elements.append(Paragraph("Location Coverage", styles['PinMeToAppendixH2']))
+        total = location_coverage.get('totalLocations', 0)
+        geo = location_coverage.get('geographicCoverage', '')
+        google_data = location_coverage.get('locationsWithGoogleData', 0)
+        reviews = location_coverage.get('locationsWithReviews', 0)
+
+        if total:
+            elements.append(Paragraph(f"<b>Total Locations:</b> {total} active locations", styles['PinMeToAppendixBody']))
+        if geo:
+            elements.append(Paragraph(f"<b>Geographic Coverage:</b> {geo}", styles['PinMeToAppendixBody']))
+        if google_data:
+            elements.append(Paragraph(f"<b>Locations with Google Data:</b> {google_data} locations", styles['PinMeToAppendixBody']))
+        if reviews:
+            elements.append(Paragraph(f"<b>Locations with Reviews:</b> {reviews} locations", styles['PinMeToAppendixBody']))
+
+    return elements
+
+
 # =============================================================================
 # Main Generation Function
 # =============================================================================
@@ -750,6 +914,9 @@ def generate_report(data: dict, output_path: str, logo_path: str = None):
 
     # Recommendations
     elements.extend(create_recommendations_section(data, styles))
+
+    # Appendix (Data & Methodology)
+    elements.extend(create_appendix(data, styles))
 
     # Build PDF with header/footer
     report_title = data.get('title', 'Location Analytics Report')

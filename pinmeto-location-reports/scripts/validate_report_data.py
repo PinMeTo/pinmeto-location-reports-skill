@@ -30,6 +30,92 @@ def validate_required_fields(data: dict) -> list[str]:
     return errors
 
 
+def validate_executive_summary(data: dict) -> list[str]:
+    """Validate executive summary structure."""
+    errors = []
+    exec_summary = data.get('executiveSummary', {})
+
+    if not exec_summary:
+        errors.append("Missing executiveSummary object (required for narrative and highlights)")
+        return errors
+
+    if not exec_summary.get('narrative'):
+        errors.append("executiveSummary.narrative is missing or empty")
+
+    highlights = exec_summary.get('highlights', [])
+    if not highlights:
+        errors.append("executiveSummary.highlights is missing or empty")
+    elif not isinstance(highlights, list):
+        errors.append("executiveSummary.highlights must be a list")
+    else:
+        for i, highlight in enumerate(highlights):
+            if not isinstance(highlight, dict):
+                errors.append(f"executiveSummary.highlights[{i}] must be an object")
+                continue
+            if not highlight.get('title'):
+                errors.append(f"executiveSummary.highlights[{i}] missing 'title'")
+            if not highlight.get('description'):
+                errors.append(f"executiveSummary.highlights[{i}] missing 'description'")
+
+    return errors
+
+
+def validate_insights(data: dict) -> list[str]:
+    """Validate insights arrays exist in all sections."""
+    errors = []
+
+    # Check platform sections
+    for platform in ['google', 'facebook', 'apple']:
+        platform_data = data.get(platform, {})
+        if platform_data and not platform_data.get('insights'):
+            errors.append(f"{platform}.insights is missing (required for Key Insights section)")
+
+    # Check keywords section
+    keywords_data = data.get('keywords', {})
+    if keywords_data and not keywords_data.get('insights'):
+        errors.append("keywords.insights is missing (required for Key Insights section)")
+
+    # Check reviews section
+    reviews_data = data.get('reviews', {})
+    if reviews_data and not reviews_data.get('insights'):
+        errors.append("reviews.insights is missing (required for Key Insights section)")
+
+    return errors
+
+
+def validate_appendix(data: dict) -> list[str]:
+    """Validate appendix structure."""
+    errors = []
+    appendix = data.get('appendix', {})
+
+    if not appendix:
+        errors.append("Missing appendix object (required for Data & Methodology section)")
+        return errors
+
+    if not appendix.get('dataSources'):
+        errors.append("appendix.dataSources is missing or empty")
+
+    reporting_period = appendix.get('reportingPeriod', {})
+    if not reporting_period:
+        errors.append("appendix.reportingPeriod is missing")
+    else:
+        if not reporting_period.get('quarter'):
+            errors.append("appendix.reportingPeriod.quarter is missing")
+        if not reporting_period.get('dateRange'):
+            errors.append("appendix.reportingPeriod.dateRange is missing")
+
+    if not appendix.get('calculationNotes'):
+        errors.append("appendix.calculationNotes is missing or empty")
+
+    location_coverage = appendix.get('locationCoverage', {})
+    if not location_coverage:
+        errors.append("appendix.locationCoverage is missing")
+    elif not location_coverage.get('totalLocations'):
+        errors.append("appendix.locationCoverage.totalLocations is missing")
+
+    return errors
+
+
 def validate_kpis(data: dict) -> list[str]:
     """Validate KPI structure and values."""
     errors = []
@@ -199,6 +285,9 @@ def validate_report_data(data: dict) -> list[str]:
     errors = []
 
     errors.extend(validate_required_fields(data))
+    errors.extend(validate_executive_summary(data))
+    errors.extend(validate_insights(data))
+    errors.extend(validate_appendix(data))
     errors.extend(validate_kpis(data))
     errors.extend(validate_rating(data))
     errors.extend(validate_sentiment(data))
