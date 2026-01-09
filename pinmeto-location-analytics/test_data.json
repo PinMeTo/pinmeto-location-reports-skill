@@ -1,0 +1,117 @@
+{
+  "companyName": "Acme Corporation",
+  "title": "Location Analytics Report",
+  "period": "Q4 2025",
+  "priorPeriod": "Q4 2024",
+  "dateRange": "October 1 - December 31, 2025",
+  "priorDateRange": "October 1 - December 31, 2024",
+  "highlights": [
+    "Total Google views increased 15% YoY to 2.4M impressions",
+    "Facebook engagement rate improved by 22% compared to Q3",
+    "Apple Maps discovery actions grew 8% quarter-over-quarter",
+    "Average Google rating maintained at 4.3 stars across all locations"
+  ],
+  "kpis": [
+    {"name": "Total Views", "value": "2.4M", "change": "+15% YoY"},
+    {"name": "Total Actions", "value": "186K", "change": "+12% YoY"},
+    {"name": "Avg Rating", "value": "4.3", "change": "+0.1"},
+    {"name": "Locations", "value": "45", "change": "+3"}
+  ],
+  "google": {
+    "metrics": [
+      {"name": "Profile Views", "value": 2400000, "periodChange": "+8%", "yearChange": "+15%"},
+      {"name": "Search Impressions", "value": 1850000, "periodChange": "+5%", "yearChange": "+18%"},
+      {"name": "Website Clicks", "value": 95000, "periodChange": "+12%", "yearChange": "+22%"},
+      {"name": "Direction Requests", "value": 67000, "periodChange": "+6%", "yearChange": "+10%"},
+      {"name": "Phone Calls", "value": 24000, "periodChange": "-3%", "yearChange": "+5%"}
+    ],
+    "chartData": [
+      {"label": "Oct", "value": 780000, "priorValue": 720000},
+      {"label": "Nov", "value": 820000, "priorValue": 750000},
+      {"label": "Dec", "value": 800000, "priorValue": 680000}
+    ]
+  },
+  "facebook": {
+    "metrics": [
+      {"name": "Page Views", "value": 125000, "periodChange": "+10%", "yearChange": "+8%"},
+      {"name": "Reach", "value": 890000, "periodChange": "+15%", "yearChange": "+25%"},
+      {"name": "Engagement", "value": 45000, "periodChange": "+22%", "yearChange": "+30%"},
+      {"name": "Post Clicks", "value": 32000, "periodChange": "+18%", "yearChange": "+20%"}
+    ],
+    "chartData": [
+      {"label": "Oct", "value": 40000, "priorValue": 36000},
+      {"label": "Nov", "value": 42000, "priorValue": 38000},
+      {"label": "Dec", "value": 43000, "priorValue": 35000}
+    ]
+  },
+  "apple": {
+    "metrics": [
+      {"name": "Discovery Views", "value": 340000, "periodChange": "+8%", "yearChange": "+12%"},
+      {"name": "Direction Requests", "value": 28000, "periodChange": "+5%", "yearChange": "+9%"},
+      {"name": "Website Clicks", "value": 15000, "periodChange": "+10%", "yearChange": "+15%"}
+    ],
+    "chartData": [
+      {"label": "Oct", "value": 110000, "priorValue": 100000},
+      {"label": "Nov", "value": 115000, "priorValue": 105000},
+      {"label": "Dec", "value": 115000, "priorValue": 102000}
+    ]
+  },
+  "keywords": {
+    "topKeywords": [
+      {"keyword": "pinmeto", "impressions": 125000, "category": "Branded"},
+      {"keyword": "pinmeto stockholm", "impressions": 45000, "category": "Branded"},
+      {"keyword": "location analytics", "impressions": 38000, "category": "Discovery"},
+      {"keyword": "local seo software", "impressions": 32000, "category": "Discovery"},
+      {"keyword": "google business profile management", "impressions": 28000, "category": "Discovery"},
+      {"keyword": "pinmeto login", "impressions": 22000, "category": "Navigational"},
+      {"keyword": "multi-location marketing", "impressions": 18000, "category": "Discovery"},
+      {"keyword": "pinmeto pricing", "impressions": 15000, "category": "Navigational"},
+      {"keyword": "local listing management", "impressions": 12000, "category": "Discovery"},
+      {"keyword": "review management platform", "impressions": 10000, "category": "Discovery"}
+    ],
+    "categoryDistribution": [
+      {"label": "Branded", "value": 52},
+      {"label": "Discovery", "value": 38},
+      {"label": "Navigational", "value": 10}
+    ]
+  },
+  "reviews": {
+    "totalReviews": 342,
+    "averageRating": 4.3,
+    "ratingChange": "+0.1",
+    "sentiment": {
+      "positive": 68,
+      "neutral": 22,
+      "negative": 10
+    },
+    "topThemes": [
+      {"theme": "Customer Service", "mentions": 89, "sentiment": "positive"},
+      {"theme": "Wait Times", "mentions": 45, "sentiment": "negative"},
+      {"theme": "Product Quality", "mentions": 72, "sentiment": "positive"},
+      {"theme": "Location/Parking", "mentions": 34, "sentiment": "neutral"},
+      {"theme": "Value for Money", "mentions": 56, "sentiment": "positive"}
+    ],
+    "recentHighlights": [
+      {"text": "Excellent service and friendly staff!", "rating": 5, "date": "2025-12-15"},
+      {"text": "Great products but parking was difficult", "rating": 4, "date": "2025-12-10"},
+      {"text": "Will definitely come back. Highly recommend!", "rating": 5, "date": "2025-12-08"}
+    ]
+  },
+  "recommendations": [
+    {
+      "title": "Optimize Google Business Profile Descriptions",
+      "description": "Update location descriptions with high-performing discovery keywords identified in the keyword analysis. Focus on 'location analytics' and 'local seo software' terms.",
+      "impact": "Projected 10-15% increase in discovery search visibility"
+    },
+    {
+      "title": "Increase Facebook Post Frequency",
+      "description": "Current engagement rates suggest audience appetite for more content. Recommend increasing from 3 to 5 posts per week with focus on local community content.",
+      "impact": "Expected 20% boost in organic reach"
+    },
+    {
+      "title": "Enable Apple Maps Enhanced Listings",
+      "description": "Several locations lack complete Apple Maps profiles. Adding photos, business hours, and services can improve discovery rates.",
+      "impact": "Potential 25% increase in Apple Maps actions"
+    }
+  ]
+}

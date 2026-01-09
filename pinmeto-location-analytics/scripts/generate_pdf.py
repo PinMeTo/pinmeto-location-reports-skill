@@ -20,6 +20,11 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+# Auto-detect paths relative to script location
+SCRIPT_DIR = Path(__file__).parent
+ASSETS_DIR = SCRIPT_DIR.parent / "assets"
+DEFAULT_LOGO = ASSETS_DIR / "logos" / "PinMeTo_Logo_Landscape.jpg"
+
 from reportlab.lib import colors
 from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
 from reportlab.lib.pagesizes import A4, landscape
@@ -64,13 +69,13 @@ def get_pinmeto_styles():
     """Create PinMeTo branded paragraph styles."""
     styles = getSampleStyleSheet()
 
-    # Title style
+    # Title style (left-aligned for cover page consistency)
     styles.add(ParagraphStyle(
         name='PinMeToTitle',
         fontName='Helvetica-Bold',
         fontSize=28,
         textColor=PINMETO_BLUE_MARINE,
-        alignment=TA_CENTER,
+        alignment=TA_LEFT,
         spaceAfter=20,
     ))
 
@@ -204,7 +209,7 @@ def create_line_chart(data: list[dict], width=400, height=200) -> Drawing:
 
 
 def create_bar_chart(data: list[dict], width=400, height=200) -> Drawing:
-    """Create a branded bar chart."""
+    """Create a branded bar chart with optional comparison period."""
     drawing = Drawing(width, height)
 
     chart = VerticalBarChart()
@@ -216,34 +221,56 @@ def create_bar_chart(data: list[dict], width=400, height=200) -> Drawing:
     # Extract data
     labels = [d.get('label', '') for d in data]
     values = [d.get('value', 0) for d in data]
+    prior_values = [d.get('priorValue', 0) for d in data]
+    has_prior = any(v > 0 for v in prior_values)
 
-    chart.data = [values]
+    if has_prior:
+        chart.data = [values, prior_values]
+        chart.bars[0].fillColor = PINMETO_BLUE
+        chart.bars[1].fillColor = PINMETO_LIGHT_BLUE
+    else:
+        chart.data = [values]
+        chart.bars[0].fillColor = PINMETO_BLUE
+
     chart.categoryAxis.categoryNames = labels
     chart.categoryAxis.labels.fontName = 'Helvetica'
     chart.categoryAxis.labels.fontSize = 8
     chart.valueAxis.labels.fontName = 'Helvetica'
     chart.valueAxis.labels.fontSize = 8
 
-    # Bar styling
-    chart.bars[0].fillColor = PINMETO_BLUE
+    # Add legend if comparison data exists
+    if has_prior:
+        from reportlab.graphics.charts.legends import Legend
+        legend = Legend()
+        legend.x = width - 80
+        legend.y = height - 5
+        legend.fontName = 'Helvetica'
+        legend.fontSize = 7
+        legend.alignment = 'right'
+        legend.columnMaximum = 1
+        legend.colorNamePairs = [
+            (PINMETO_BLUE, 'Current'),
+            (PINMETO_LIGHT_BLUE, 'Prior')
+        ]
+        drawing.add(legend)
 
     drawing.add(chart)
     return drawing
 
 
 def create_pie_chart(data: list[dict], width=300, height=200) -> Drawing:
-    """Create a branded pie chart."""
+    """Create a branded pie chart with legend."""
     drawing = Drawing(width, height)
 
     pie = Pie()
-    pie.x = 100
+    pie.x = 50  # Move pie left to make room for legend
     pie.y = 30
     pie.width = 120
     pie.height = 120
 
     # Extract data
     pie.data = [d.get('value', 0) for d in data]
-    pie.labels = [d.get('label', '') for d in data]
+    pie.labels = None  # Hide slice labels, use legend instead
 
     # Apply colors
     for i, _ in enumerate(data):
@@ -253,13 +280,29 @@ def create_pie_chart(data: list[dict], width=300, height=200) -> Drawing:
     pie.slices.fontSize = 8
 
     drawing.add(pie)
+
+    # Add legend on the right side with proper spacing
+    from reportlab.graphics.charts.legends import Legend
+    legend = Legend()
+    legend.x = 200  # Position to the right of pie chart
+    legend.y = height - 60  # Position near top
+    legend.fontName = 'Helvetica'
+    legend.fontSize = 8
+    legend.alignment = 'left'
+    legend.columnMaximum = len(data)
+    legend.colorNamePairs = [
+        (CHART_COLORS[i % len(CHART_COLORS)], d.get('label', ''))
+        for i, d in enumerate(data)
+    ]
+    drawing.add(legend)
+
     return drawing
 
 
 # =============================================================================
 # Page Templates
 # =============================================================================
-def header_footer(canvas, doc, report_title: str, logo_path: str = None):
+def header_footer(canvas, doc, report_title: str, logo_path: str = None, company_name: str = None, period_info: dict = None):
     """Add header and footer to each page."""
     canvas.saveState()
 
@@ -268,10 +311,11 @@ def header_footer(canvas, doc, report_title: str, logo_path: str = None):
     canvas.setLineWidth(2)
     canvas.line(50, doc.height + 60, doc.width + 50, doc.height + 60)
 
-    # Header text
+    # Header text (company name + report title)
+    header_text = f"{company_name} - {report_title}" if company_name else report_title
     canvas.setFont('Helvetica', 8)
     canvas.setFillColor(PINMETO_MID_GREY)
-    canvas.drawString(50, doc.height + 70, report_title)
+    canvas.drawString(50, doc.height + 70, header_text)
 
     # Logo (if available)
     if logo_path and os.path.exists(logo_path):
@@ -281,6 +325,14 @@ def header_footer(canvas, doc, report_title: str, logo_path: str = None):
     canvas.setFont('Helvetica', 8)
     canvas.setFillColor(PINMETO_MID_GREY)
     canvas.drawString(50, 30, f"Generated: {datetime.now().strftime('%Y-%m-%d')}")
+
+    # Period info (center of footer)
+    if period_info and period_info.get('period'):
+        period = period_info.get('period', '')
+        prior_period = period_info.get('priorPeriod', '') or period_info.get('prior_period', '')
+        period_text = f"{period} vs {prior_period}" if prior_period else period
+        canvas.drawCentredString((doc.width + 100) / 2, 30, period_text)
+
     canvas.drawRightString(doc.width + 50, 30, f"Page {doc.page}")
 
     # Footer line
@@ -301,6 +353,12 @@ def create_cover_page(data: dict, styles) -> list:
     # Spacer for vertical centering
     elements.append(Spacer(1, 2*inch))
 
+    # Company/Brand name
+    company_name = data.get('companyName') or data.get('company_name')
+    if company_name:
+        elements.append(Paragraph(company_name, styles['PinMeToH2']))
+        elements.append(Spacer(1, 10))
+
     # Report title
     title = data.get('title', 'Location Analytics Report')
     elements.append(Paragraph(title, styles['PinMeToTitle']))
@@ -310,11 +368,17 @@ def create_cover_page(data: dict, styles) -> list:
     if period:
         elements.append(Paragraph(period, styles['PinMeToH2']))
 
-    # Date range
-    date_range = data.get('date_range', '')
+    # Current period date range
+    date_range = data.get('dateRange', '') or data.get('date_range', '')
     if date_range:
         elements.append(Spacer(1, 20))
-        elements.append(Paragraph(date_range, styles['PinMeToBody']))
+        elements.append(Paragraph(f"Current Period: {date_range}", styles['PinMeToBody']))
+
+    # Prior period date range (for YoY comparison)
+    prior_period = data.get('priorPeriod', '') or data.get('prior_period', '')
+    prior_date_range = data.get('priorDateRange', '') or data.get('prior_date_range', '')
+    if prior_period and prior_date_range:
+        elements.append(Paragraph(f"Prior Period ({prior_period}): {prior_date_range}", styles['PinMeToBody']))
 
     elements.append(Spacer(1, 2*inch))
 
@@ -372,7 +436,15 @@ def create_metrics_section(data: dict, platform: str, styles) -> list:
     if not platform_data:
         return elements
 
-    elements.append(Paragraph(f"{platform} Performance", styles['PinMeToH1']))
+    # Proper platform display names
+    platform_names = {
+        'google': 'Google Business Profile',
+        'facebook': 'Facebook',
+        'apple': 'Apple Maps'
+    }
+    display_name = platform_names.get(platform, platform.title())
+
+    elements.append(Paragraph(f"{display_name} Performance", styles['PinMeToH1']))
 
     # Metrics table
     metrics = platform_data.get('metrics', [])
@@ -382,8 +454,8 @@ def create_metrics_section(data: dict, platform: str, styles) -> list:
             table_data.append([
                 metric.get('name', ''),
                 str(metric.get('value', '')),
-                metric.get('period_change', 'N/A'),
-                metric.get('year_change', 'N/A')
+                metric.get('periodChange', '') or metric.get('period_change', 'N/A'),
+                metric.get('yearChange', '') or metric.get('year_change', 'N/A')
             ])
 
         table = Table(table_data, colWidths=[150, 80, 100, 100])
@@ -391,7 +463,7 @@ def create_metrics_section(data: dict, platform: str, styles) -> list:
         elements.append(table)
 
     # Chart if data available
-    chart_data = platform_data.get('chart_data', [])
+    chart_data = platform_data.get('chartData', []) or platform_data.get('chart_data', [])
     if chart_data:
         elements.append(Spacer(1, 20))
         chart = create_bar_chart(chart_data)
@@ -412,7 +484,7 @@ def create_keywords_section(data: dict, styles) -> list:
     elements.append(Paragraph("Search Keywords Analysis", styles['PinMeToH1']))
 
     # Top keywords table
-    top_keywords = keywords_data.get('top_keywords', [])
+    top_keywords = keywords_data.get('topKeywords', []) or keywords_data.get('top_keywords', [])
     if top_keywords:
         elements.append(Paragraph("Top Keywords", styles['PinMeToH2']))
 
@@ -430,12 +502,65 @@ def create_keywords_section(data: dict, styles) -> list:
         elements.append(table)
 
     # Category distribution
-    categories = keywords_data.get('category_distribution', [])
+    categories = keywords_data.get('categoryDistribution', []) or keywords_data.get('category_distribution', [])
     if categories:
         elements.append(Spacer(1, 20))
         elements.append(Paragraph("Category Distribution", styles['PinMeToH2']))
         chart = create_pie_chart(categories)
         elements.append(chart)
+
+    elements.append(PageBreak())
+    return elements
+
+
+def create_reviews_section(data: dict, styles) -> list:
+    """Create reviews and sentiment analysis section."""
+    elements = []
+
+    reviews_data = data.get('reviews', {})
+    if not reviews_data:
+        return elements
+
+    elements.append(Paragraph("Review Sentiment Analysis", styles['PinMeToH1']))
+
+    # Summary stats
+    total = reviews_data.get('totalReviews', 0)
+    avg_rating = reviews_data.get('averageRating', 0)
+    rating_change = reviews_data.get('ratingChange', '')
+
+    elements.append(Paragraph(
+        f"<b>Total Reviews:</b> {total:,} | <b>Average Rating:</b> {avg_rating} ({rating_change})",
+        styles['PinMeToBody']
+    ))
+    elements.append(Spacer(1, 15))
+
+    # Sentiment distribution pie chart
+    sentiment = reviews_data.get('sentiment', {})
+    if sentiment:
+        elements.append(Paragraph("Sentiment Distribution", styles['PinMeToH2']))
+        sentiment_data = [
+            {'label': 'Positive', 'value': sentiment.get('positive', 0)},
+            {'label': 'Neutral', 'value': sentiment.get('neutral', 0)},
+            {'label': 'Negative', 'value': sentiment.get('negative', 0)},
+        ]
+        chart = create_pie_chart(sentiment_data)
+        elements.append(chart)
+        elements.append(Spacer(1, 15))
+
+    # Top themes table
+    themes = reviews_data.get('topThemes', [])
+    if themes:
+        elements.append(Paragraph("Top Review Themes", styles['PinMeToH2']))
+        table_data = [['Theme', 'Mentions', 'Sentiment']]
+        for theme in themes:
+            table_data.append([
+                theme.get('theme', ''),
+                str(theme.get('mentions', '')),
+                theme.get('sentiment', '').title()
+            ])
+        table = Table(table_data, colWidths=[150, 80, 100])
+        table.setStyle(get_data_table_style())
+        elements.append(table)
 
     elements.append(PageBreak())
     return elements
@@ -477,8 +602,11 @@ def generate_report(data: dict, output_path: str, logo_path: str = None):
     Args:
         data: Report data dictionary with sections
         output_path: Path to save the PDF
-        logo_path: Optional path to logo image
+        logo_path: Optional path to logo image (uses default if not provided)
     """
+    # Use default logo if not provided
+    if logo_path is None and DEFAULT_LOGO.exists():
+        logo_path = str(DEFAULT_LOGO)
     doc = SimpleDocTemplate(
         output_path,
         pagesize=A4,
@@ -509,15 +637,23 @@ def generate_report(data: dict, output_path: str, logo_path: str = None):
     # Keywords
     elements.extend(create_keywords_section(data, styles))
 
+    # Reviews and Sentiment
+    elements.extend(create_reviews_section(data, styles))
+
     # Recommendations
     elements.extend(create_recommendations_section(data, styles))
 
     # Build PDF with header/footer
     report_title = data.get('title', 'Location Analytics Report')
+    company_name = data.get('companyName') or data.get('company_name')
+    period_info = {
+        'period': data.get('period', ''),
+        'priorPeriod': data.get('priorPeriod', '') or data.get('prior_period', '')
+    }
     doc.build(
         elements,
         onFirstPage=lambda c, d: None,  # No header on cover
-        onLaterPages=lambda c, d: header_footer(c, d, report_title, logo_path)
+        onLaterPages=lambda c, d: header_footer(c, d, report_title, logo_path, company_name, period_info)
     )
 
     print(f"Report generated: {output_path}")

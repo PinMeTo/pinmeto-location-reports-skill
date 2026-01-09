@@ -17,6 +17,18 @@
 const fs = require("fs");
 const path = require("path");
 const PptxGenJS = require("pptxgenjs");
+const { ChartJSNodeCanvas } = require("chartjs-node-canvas");
+
+// Chart image generator (for Keynote compatibility)
+const chartWidth = 800;
+const chartHeight = 500;
+const chartJSNodeCanvas = new ChartJSNodeCanvas({ width: chartWidth, height: chartHeight, backgroundColour: "white" });
+
+// Auto-detect logo path relative to script location
+const SCRIPT_DIR = __dirname;
+const ASSETS_DIR = path.join(SCRIPT_DIR, "..", "assets");
+// Use JPG logo with white title slide background
+const DEFAULT_LOGO = path.join(ASSETS_DIR, "logos", "PinMeTo_Logo_Landscape.jpg");
 
 // =============================================================================
 // PinMeTo Brand Constants
@@ -52,6 +64,120 @@ const SLIDE = {
 };
 
 // =============================================================================
+// Chart Image Generation (for Keynote compatibility)
+// =============================================================================
+
+/**
+ * Generate a bar chart image as base64 data URL
+ */
+async function generateBarChartImage(chartData, title, hasPriorData) {
+  const labels = chartData.map(d => d.label);
+  const currentValues = chartData.map(d => d.value);
+  const priorValues = chartData.map(d => d.priorValue || 0);
+
+  const datasets = [
+    {
+      label: "Current Period",
+      data: currentValues,
+      backgroundColor: `#${BRAND.colors.blue}`,
+      borderColor: `#${BRAND.colors.blue}`,
+      borderWidth: 1,
+    },
+  ];
+
+  if (hasPriorData) {
+    datasets.push({
+      label: "Prior Period",
+      data: priorValues,
+      backgroundColor: `#${BRAND.colors.lightBlue}`,
+      borderColor: `#${BRAND.colors.lightBlue}`,
+      borderWidth: 1,
+    });
+  }
+
+  const configuration = {
+    type: "bar",
+    data: {
+      labels: labels,
+      datasets: datasets,
+    },
+    options: {
+      responsive: false,
+      plugins: {
+        title: {
+          display: true,
+          text: title,
+          font: { size: 16, family: "Arial" },
+          color: `#${BRAND.colors.midGrey}`,
+        },
+        legend: {
+          display: hasPriorData,
+          position: "bottom",
+          labels: { font: { size: 12, family: "Arial" } },
+        },
+      },
+      scales: {
+        y: {
+          beginAtZero: true,
+          ticks: { font: { size: 11, family: "Arial" } },
+        },
+        x: {
+          ticks: { font: { size: 11, family: "Arial" } },
+        },
+      },
+    },
+  };
+
+  const imageBuffer = await chartJSNodeCanvas.renderToBuffer(configuration);
+  return `data:image/png;base64,${imageBuffer.toString("base64")}`;
+}
+
+/**
+ * Generate a pie chart image as base64 data URL
+ * Uses square dimensions to prevent distortion
+ */
+async function generatePieChartImage(data, title) {
+  // Use square canvas for pie charts to prevent distortion
+  const pieChartCanvas = new ChartJSNodeCanvas({ width: 500, height: 500, backgroundColour: "white" });
+
+  const labels = data.map(d => d.label || d.name);
+  const values = data.map(d => d.value);
+  const colors = data.map((_, i) => `#${CHART_COLORS[i % CHART_COLORS.length]}`);
+
+  const configuration = {
+    type: "pie",
+    data: {
+      labels: labels,
+      datasets: [{
+        data: values,
+        backgroundColor: colors,
+        borderColor: colors.map(() => "#FFFFFF"),
+        borderWidth: 2,
+      }],
+    },
+    options: {
+      responsive: false,
+      plugins: {
+        title: {
+          display: true,
+          text: title,
+          font: { size: 18, family: "Arial" },
+          color: `#${BRAND.colors.midGrey}`,
+        },
+        legend: {
+          display: true,
+          position: "bottom",
+          labels: { font: { size: 14, family: "Arial" } },
+        },
+      },
+    },
+  };
+
+  const imageBuffer = await pieChartCanvas.renderToBuffer(configuration);
+  return `data:image/png;base64,${imageBuffer.toString("base64")}`;
+}
+
+// =============================================================================
 // Slide Master Setup
 // =============================================================================
 function setupSlideMaster(pptx) {
@@ -85,24 +211,8 @@ function setupSlideMaster(pptx) {
           },
         },
       },
-      // Page number placeholder
-      {
-        text: {
-          text: "SLIDE_NUMBER",
-          options: {
-            x: 9,
-            y: 5.3,
-            w: 0.5,
-            h: 0.25,
-            fontSize: 8,
-            color: BRAND.colors.midGrey,
-            fontFace: BRAND.fonts.body,
-            align: "right",
-          },
-        },
-      },
     ],
-    slideNumber: { x: 9.3, y: 5.3, fontSize: 8, color: BRAND.colors.midGrey },
+    slideNumber: { x: 9.2, y: 5.3, fontSize: 8, color: BRAND.colors.midGrey },
   });
 }
 
@@ -112,29 +222,45 @@ function setupSlideMaster(pptx) {
 function createTitleSlide(pptx, data) {
   const slide = pptx.addSlide();
 
-  // Dark background
-  slide.background = { color: BRAND.colors.blueMarine };
+  // White background with JPG logo
+  slide.background = { color: BRAND.colors.white };
 
-  // Logo placeholder (if logo path provided)
-  if (data.logoPath && fs.existsSync(data.logoPath)) {
+  // Logo - use provided path or default
+  // Logo aspect ratio is 2784x1259 (~2.21:1)
+  const logoPath = data.logoPath || DEFAULT_LOGO;
+  if (fs.existsSync(logoPath)) {
     slide.addImage({
-      path: data.logoPath,
+      path: logoPath,
       x: 0.5,
-      y: 0.5,
-      w: 2,
-      h: 0.7,
+      y: 0.4,
+      w: 1.8,
+      h: 0.81,
+    });
+  }
+
+  // Company/Brand name
+  const companyName = data.companyName || data.company_name;
+  if (companyName) {
+    slide.addText(companyName, {
+      x: 0.5,
+      y: 1.5,
+      w: 9,
+      h: 0.4,
+      fontSize: 16,
+      fontFace: BRAND.fonts.body,
+      color: BRAND.colors.midGrey,
     });
   }
 
   // Main title
   slide.addText(data.title || "Location Analytics Report", {
     x: 0.5,
-    y: 2,
+    y: companyName ? 2 : 2,
     w: 9,
     h: 1,
     fontSize: 36,
     fontFace: BRAND.fonts.heading,
-    color: BRAND.colors.white,
+    color: BRAND.colors.blueMarine,
     bold: true,
   });
 
@@ -149,16 +275,31 @@ function createTitleSlide(pptx, data) {
     color: BRAND.colors.blue,
   });
 
-  // Date range
-  slide.addText(data.dateRange || "", {
+  // Current period date range
+  const currentLabel = `Current Period: ${data.dateRange || ""}`;
+  slide.addText(currentLabel, {
     x: 0.5,
     y: 3.6,
     w: 9,
     h: 0.3,
-    fontSize: 14,
+    fontSize: 12,
     fontFace: BRAND.fonts.body,
-    color: BRAND.colors.lightBlue,
+    color: BRAND.colors.midGrey,
   });
+
+  // Prior period date range (for YoY comparison)
+  if (data.priorPeriod && data.priorDateRange) {
+    const priorLabel = `Prior Period (${data.priorPeriod}): ${data.priorDateRange}`;
+    slide.addText(priorLabel, {
+      x: 0.5,
+      y: 3.95,
+      w: 9,
+      h: 0.3,
+      fontSize: 12,
+      fontFace: BRAND.fonts.body,
+      color: BRAND.colors.midGrey,
+    });
+  }
 
   // Generation date
   const today = new Date().toISOString().split("T")[0];
@@ -169,7 +310,7 @@ function createTitleSlide(pptx, data) {
     h: 0.3,
     fontSize: 10,
     fontFace: BRAND.fonts.body,
-    color: BRAND.colors.lightBlue,
+    color: BRAND.colors.midGrey,
   });
 }
 
@@ -295,7 +436,7 @@ function createExecutiveSummary(pptx, data) {
 // =============================================================================
 // Metrics Slide
 // =============================================================================
-function createMetricsSlide(pptx, title, metricsData) {
+async function createMetricsSlide(pptx, title, metricsData, periodInfo) {
   const slide = pptx.addSlide({ masterName: "PINMETO_MASTER" });
 
   // Title
@@ -309,6 +450,23 @@ function createMetricsSlide(pptx, title, metricsData) {
     color: BRAND.colors.blue,
     bold: true,
   });
+
+  // Period in footer (center, non-intrusive)
+  if (periodInfo && periodInfo.period) {
+    const periodText = periodInfo.priorPeriod
+      ? `${periodInfo.period} vs ${periodInfo.priorPeriod}`
+      : periodInfo.period;
+    slide.addText(periodText, {
+      x: 4,
+      y: 5.3,
+      w: 2,
+      h: 0.25,
+      fontSize: 8,
+      fontFace: BRAND.fonts.body,
+      color: BRAND.colors.midGrey,
+      align: "center",
+    });
+  }
 
   // Metrics table
   const metrics = metricsData.metrics || [];
@@ -335,31 +493,28 @@ function createMetricsSlide(pptx, title, metricsData) {
     slide.addTable(tableData, {
       x: 0.5,
       y: 1,
-      w: 9,
+      w: 4.3,
       fontFace: BRAND.fonts.body,
-      fontSize: 10,
+      fontSize: 9,
       border: { pt: 0.5, color: BRAND.colors.lightBlue },
     });
   }
 
-  // Chart section
+  // Chart section - as image for Keynote compatibility
   const chartData = metricsData.chartData || [];
   if (chartData.length > 0) {
-    slide.addChart(pptx.ChartType.bar, [
-      {
-        name: title,
-        labels: chartData.map(d => d.label),
-        values: chartData.map(d => d.value),
-      },
-    ], {
-      x: 0.5,
-      y: 3.2,
-      w: 5,
-      h: 2,
-      chartColors: [BRAND.colors.blue],
-      showLegend: false,
-      showTitle: false,
-      barGapWidthPct: 50,
+    const hasPriorData = chartData.some(d => d.priorValue !== undefined);
+    console.log(`  Adding chart image for ${title} with ${chartData.length} data points (comparison: ${hasPriorData})`);
+
+    const chartTitle = hasPriorData ? "Current vs Prior Period" : "Monthly Trend";
+    const chartImage = await generateBarChartImage(chartData, chartTitle, hasPriorData);
+
+    slide.addImage({
+      data: chartImage,
+      x: 5,
+      y: 1,
+      w: 4.5,
+      h: 3.5,
     });
   }
 }
@@ -367,7 +522,7 @@ function createMetricsSlide(pptx, title, metricsData) {
 // =============================================================================
 // Keywords Slide
 // =============================================================================
-function createKeywordsSlide(pptx, keywordsData) {
+async function createKeywordsSlide(pptx, keywordsData, periodInfo) {
   const slide = pptx.addSlide({ masterName: "PINMETO_MASTER" });
 
   // Title
@@ -381,6 +536,23 @@ function createKeywordsSlide(pptx, keywordsData) {
     color: BRAND.colors.blue,
     bold: true,
   });
+
+  // Period in footer (center, non-intrusive)
+  if (periodInfo && periodInfo.period) {
+    const periodText = periodInfo.priorPeriod
+      ? `${periodInfo.period} vs ${periodInfo.priorPeriod}`
+      : periodInfo.period;
+    slide.addText(periodText, {
+      x: 4,
+      y: 5.3,
+      w: 2,
+      h: 0.25,
+      fontSize: 8,
+      fontFace: BRAND.fonts.body,
+      color: BRAND.colors.midGrey,
+      align: "center",
+    });
+  }
 
   // Keywords table
   const keywords = keywordsData.topKeywords || [];
@@ -414,30 +586,158 @@ function createKeywordsSlide(pptx, keywordsData) {
     });
   }
 
-  // Category distribution pie chart
+  // Category distribution pie chart - as image for Keynote compatibility
   const categories = keywordsData.categoryDistribution || [];
   if (categories.length > 0) {
-    slide.addChart(pptx.ChartType.pie, [
-      {
-        name: "Categories",
-        labels: categories.map(c => c.label),
-        values: categories.map(c => c.value),
-      },
-    ], {
+    console.log(`  Adding pie chart image with ${categories.length} categories`);
+    const chartImage = await generatePieChartImage(categories, "Category Distribution");
+
+    slide.addImage({
+      data: chartImage,
       x: 6.2,
-      y: 1,
-      w: 3.3,
-      h: 2.5,
-      chartColors: CHART_COLORS,
-      showLegend: true,
-      legendPos: "b",
-      showTitle: false,
+      y: 0.9,
+      w: 3.2,
+      h: 3.2,
+    });
+  }
+}
+
+// =============================================================================
+// Reviews Sentiment Slide
+// =============================================================================
+async function createReviewsSlide(pptx, reviewsData, periodInfo) {
+  if (!reviewsData) return;
+
+  const slide = pptx.addSlide({ masterName: "PINMETO_MASTER" });
+
+  // Title
+  slide.addText("Review Sentiment Analysis", {
+    x: 0.5,
+    y: 0.3,
+    w: 9,
+    h: 0.5,
+    fontSize: 24,
+    fontFace: BRAND.fonts.heading,
+    color: BRAND.colors.blue,
+    bold: true,
+  });
+
+  // Period in footer (center, non-intrusive)
+  if (periodInfo && periodInfo.period) {
+    const periodText = periodInfo.priorPeriod
+      ? `${periodInfo.period} vs ${periodInfo.priorPeriod}`
+      : periodInfo.period;
+    slide.addText(periodText, {
+      x: 4,
+      y: 5.3,
+      w: 2,
+      h: 0.25,
+      fontSize: 8,
+      fontFace: BRAND.fonts.body,
+      color: BRAND.colors.midGrey,
+      align: "center",
+    });
+  }
+
+  // Summary stats
+  const totalReviews = reviewsData.totalReviews || 0;
+  const avgRating = reviewsData.averageRating || 0;
+  const ratingChange = reviewsData.ratingChange || "";
+
+  slide.addText(`Total Reviews: ${totalReviews.toLocaleString()}  |  Average Rating: ${avgRating} (${ratingChange})`, {
+    x: 0.5,
+    y: 0.85,
+    w: 9,
+    h: 0.3,
+    fontSize: 11,
+    fontFace: BRAND.fonts.body,
+    color: BRAND.colors.midGrey,
+  });
+
+  // Sentiment pie chart - as image for Keynote compatibility
+  const sentiment = reviewsData.sentiment || {};
+  if (sentiment.positive || sentiment.neutral || sentiment.negative) {
+    console.log(`  Adding sentiment pie chart image`);
+
+    // Use square canvas for pie charts to prevent distortion
+    const sentimentChartCanvas = new ChartJSNodeCanvas({ width: 500, height: 500, backgroundColour: "white" });
+    const configuration = {
+      type: "pie",
+      data: {
+        labels: ["Positive", "Neutral", "Negative"],
+        datasets: [{
+          data: [sentiment.positive || 0, sentiment.neutral || 0, sentiment.negative || 0],
+          backgroundColor: ["#27ae60", `#${BRAND.colors.lightBlue}`, `#${BRAND.colors.orange}`],
+          borderColor: ["#FFFFFF", "#FFFFFF", "#FFFFFF"],
+          borderWidth: 2,
+        }],
+      },
+      options: {
+        responsive: false,
+        plugins: {
+          title: {
+            display: true,
+            text: "Sentiment Distribution (%)",
+            font: { size: 18, family: "Arial" },
+            color: `#${BRAND.colors.midGrey}`,
+          },
+          legend: {
+            display: true,
+            position: "bottom",
+            labels: { font: { size: 14, family: "Arial" } },
+          },
+        },
+      },
+    };
+
+    const imageBuffer = await sentimentChartCanvas.renderToBuffer(configuration);
+    const chartImage = `data:image/png;base64,${imageBuffer.toString("base64")}`;
+
+    slide.addImage({
+      data: chartImage,
+      x: 0.5,
+      y: 1.2,
+      w: 3,
+      h: 3,
+    });
+  }
+
+  // Top themes table
+  const themes = reviewsData.topThemes || [];
+  if (themes.length > 0) {
+    const tableData = [
+      [
+        { text: "Theme", options: { bold: true, fill: { color: BRAND.colors.blue }, color: BRAND.colors.white } },
+        { text: "Mentions", options: { bold: true, fill: { color: BRAND.colors.blue }, color: BRAND.colors.white } },
+        { text: "Sentiment", options: { bold: true, fill: { color: BRAND.colors.blue }, color: BRAND.colors.white } },
+      ],
+    ];
+
+    themes.slice(0, 5).forEach((theme, i) => {
+      const rowFill = i % 2 === 0 ? BRAND.colors.white : BRAND.colors.grey;
+      const sentimentColor = theme.sentiment === "positive" ? "27ae60" :
+                            theme.sentiment === "negative" ? BRAND.colors.orange : BRAND.colors.midGrey;
+      tableData.push([
+        { text: theme.theme || "", options: { fill: { color: rowFill } } },
+        { text: String(theme.mentions || ""), options: { fill: { color: rowFill } } },
+        { text: (theme.sentiment || "").charAt(0).toUpperCase() + (theme.sentiment || "").slice(1),
+          options: { fill: { color: rowFill }, color: sentimentColor } },
+      ]);
     });
 
-    slide.addText("Category Distribution", {
-      x: 6.2,
+    slide.addTable(tableData, {
+      x: 4,
+      y: 1.2,
+      w: 5.5,
+      fontFace: BRAND.fonts.body,
+      fontSize: 9,
+      border: { pt: 0.5, color: BRAND.colors.lightBlue },
+    });
+
+    slide.addText("Top Review Themes", {
+      x: 4,
       y: 3.6,
-      w: 3.3,
+      w: 5.5,
       h: 0.3,
       fontSize: 10,
       fontFace: BRAND.fonts.body,
@@ -534,7 +834,7 @@ function createRecommendationsSlide(pptx, recommendations) {
 // =============================================================================
 // Main Generation Function
 // =============================================================================
-function generateReport(data, outputPath) {
+async function generateReport(data, outputPath) {
   const pptx = new PptxGenJS();
 
   // Presentation setup
@@ -546,26 +846,34 @@ function generateReport(data, outputPath) {
   // Setup slide master
   setupSlideMaster(pptx);
 
+  // Period info for subtitles
+  const periodInfo = { period: data.period, priorPeriod: data.priorPeriod };
+
   // Create slides
   createTitleSlide(pptx, data);
   createExecutiveSummary(pptx, data);
 
-  // Platform metrics
+  // Platform metrics (async - generates chart images)
   if (data.google) {
-    createMetricsSlide(pptx, "Google Business Profile", data.google);
+    await createMetricsSlide(pptx, "Google Business Profile", data.google, periodInfo);
   }
 
   if (data.facebook) {
-    createMetricsSlide(pptx, "Facebook Performance", data.facebook);
+    await createMetricsSlide(pptx, "Facebook Performance", data.facebook, periodInfo);
   }
 
   if (data.apple) {
-    createMetricsSlide(pptx, "Apple Maps Performance", data.apple);
+    await createMetricsSlide(pptx, "Apple Maps Performance", data.apple, periodInfo);
   }
 
-  // Keywords
+  // Keywords (async - generates pie chart image)
   if (data.keywords) {
-    createKeywordsSlide(pptx, data.keywords);
+    await createKeywordsSlide(pptx, data.keywords, periodInfo);
+  }
+
+  // Reviews and Sentiment (async - generates pie chart image)
+  if (data.reviews) {
+    await createReviewsSlide(pptx, data.reviews, periodInfo);
   }
 
   // Recommendations
@@ -574,20 +882,19 @@ function generateReport(data, outputPath) {
   }
 
   // Save presentation
-  pptx.writeFile({ fileName: outputPath })
-    .then(() => {
-      console.log(`Presentation generated: ${outputPath}`);
-    })
-    .catch((err) => {
-      console.error("Error generating presentation:", err);
-      process.exit(1);
-    });
+  try {
+    await pptx.writeFile({ fileName: outputPath });
+    console.log(`Presentation generated: ${outputPath}`);
+  } catch (err) {
+    console.error("Error generating presentation:", err);
+    process.exit(1);
+  }
 }
 
 // =============================================================================
 // CLI Interface
 // =============================================================================
-function main() {
+async function main() {
   const args = process.argv.slice(2);
 
   // Parse arguments
@@ -617,8 +924,11 @@ function main() {
   const data = JSON.parse(fs.readFileSync(dataPath, "utf8"));
   data.periodType = data.periodType || period;
 
-  // Generate report
-  generateReport(data, outputPath);
+  // Generate report (async - generates chart images)
+  await generateReport(data, outputPath);
 }
 
-main();
+main().catch(err => {
+  console.error("Fatal error:", err);
+  process.exit(1);
+});
