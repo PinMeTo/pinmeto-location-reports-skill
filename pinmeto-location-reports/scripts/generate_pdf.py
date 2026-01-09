@@ -394,10 +394,13 @@ def create_pie_chart(data: list[dict], width=300, height=200) -> Drawing:
     return drawing
 
 
-def generate_bar_chart_image(data: list[dict], width=450, height=220, current_label=None, prior_label=None) -> io.BytesIO:
+def generate_bar_chart_image(data: list[dict], width=450, height=220, current_label=None, prior_label=None, value_name=None) -> io.BytesIO:
     """
     Generate bar chart using matplotlib (matches PPTX approach).
     Returns BytesIO buffer with PNG image, or None if data is invalid.
+
+    Args:
+        value_name: Label describing what the values represent (e.g., "Profile Views")
     """
     if not data or not isinstance(data, list):
         return None
@@ -407,7 +410,7 @@ def generate_bar_chart_image(data: list[dict], width=450, height=220, current_la
     prior_values = [d.get('priorValue', 0) for d in data]
     has_prior = any(v > 0 for v in prior_values)
 
-    # Create figure with proper size
+    # Create figure with extra height for legend below
     fig, ax = plt.subplots(figsize=(width / 72, height / 72), dpi=150)
 
     x = list(range(len(labels)))
@@ -445,9 +448,15 @@ def generate_bar_chart_image(data: list[dict], width=450, height=220, current_la
     ax.tick_params(axis='y', labelsize=8)
     ax.spines['top'].set_visible(False)
     ax.spines['right'].set_visible(False)
-    ax.legend(loc='upper right', fontsize=8)
 
-    plt.tight_layout()
+    # Add title showing what value is displayed
+    if value_name:
+        ax.set_title(value_name, fontsize=10, color='#001334', fontweight='bold', pad=10)
+
+    # Legend below the chart
+    ax.legend(loc='upper center', bbox_to_anchor=(0.5, -0.12), ncol=2, fontsize=8, frameon=False)
+
+    plt.tight_layout(rect=[0, 0.08, 1, 1])  # Leave room for legend below
 
     # Save to buffer
     buf = io.BytesIO()
@@ -830,22 +839,30 @@ def create_metrics_section(data: dict, platform: str, styles, period_info: dict 
     chart_data = platform_data.get('chartData', []) or platform_data.get('chart_data', [])
     if chart_data:
         elements.append(Spacer(1, 30))
+        # Determine chart title based on platform's primary metric
+        chart_titles = {
+            'google': 'Profile Views',
+            'facebook': 'Page Engagement',
+            'apple': 'Discovery Views'
+        }
+        chart_title = chart_titles.get(platform, 'Monthly Activity')
         chart_image = generate_bar_chart_image(
             chart_data,
             width=450,
-            height=200,
+            height=220,
             current_label=current_period,
-            prior_label=prior_year_period
+            prior_label=prior_year_period,
+            value_name=chart_title
         )
         if chart_image:
-            elements.append(Image(chart_image, width=450, height=200))
+            elements.append(Image(chart_image, width=450, height=220))
 
     elements.append(PageBreak())
     return elements
 
 
 def create_keywords_section(data: dict, styles) -> list:
-    """Create keywords analysis section with side-by-side layout."""
+    """Create keywords analysis section with table above pie chart."""
     elements = []
 
     keywords_data = data.get('keywords', {})
@@ -864,18 +881,17 @@ def create_keywords_section(data: dict, styles) -> list:
     top_keywords = keywords_data.get('topKeywords', []) or keywords_data.get('top_keywords', [])
     categories = keywords_data.get('categoryDistribution', []) or keywords_data.get('category_distribution', [])
 
-    # Build left column: Keywords table
-    left_content = []
+    # Keywords table
     if top_keywords:
-        left_content.append(Paragraph("Top Keywords", styles['PinMeToH2']))
-        left_content.append(Spacer(1, 8))
+        elements.append(Paragraph("Top Keywords", styles['PinMeToH2']))
+        elements.append(Spacer(1, 8))
 
         # Create a style for wrapped table cells
         cell_style = ParagraphStyle(
             'TableCell',
             fontName='Helvetica',
-            fontSize=8,
-            leading=10,
+            fontSize=9,
+            leading=11,
             textColor=PINMETO_MID_GREY,
         )
 
@@ -887,40 +903,22 @@ def create_keywords_section(data: dict, styles) -> list:
             table_data.append([
                 str(i),
                 keyword_para,
-                str(kw.get('impressions', '')),
+                f"{kw.get('impressions', 0):,}",
                 kw.get('category', '')
             ])
 
-        keywords_table = Table(table_data, colWidths=[30, 135, 55, 80])
+        keywords_table = Table(table_data, colWidths=[40, 220, 100, 130])
         keywords_table.setStyle(get_data_table_style())
-        left_content.append(keywords_table)
+        elements.append(keywords_table)
 
-    # Build right column: Category distribution pie chart
-    right_content = []
+    # Category distribution pie chart below the table
     if categories:
-        right_content.append(Paragraph("Category Distribution", styles['PinMeToH2']))
-        right_content.append(Spacer(1, 8))
-        # Smaller pie chart to fit side-by-side (wider to show full legend text)
-        pie_chart = create_pie_chart(categories, width=190, height=160)
-        right_content.append(pie_chart)
-
-    # Create side-by-side layout using a wrapper table
-    if left_content and right_content:
-        # Wrapper table with 2 columns
-        wrapper_data = [[left_content, right_content]]
-        wrapper = Table(wrapper_data, colWidths=[310, 190])
-        wrapper.setStyle(TableStyle([
-            ('VALIGN', (0, 0), (-1, -1), 'TOP'),
-            ('LEFTPADDING', (0, 0), (-1, -1), 0),
-            ('RIGHTPADDING', (0, 0), (-1, -1), 5),
-            ('TOPPADDING', (0, 0), (-1, -1), 0),
-            ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
-        ]))
-        elements.append(wrapper)
-    elif left_content:
-        elements.extend(left_content)
-    elif right_content:
-        elements.extend(right_content)
+        elements.append(Spacer(1, 25))
+        elements.append(Paragraph("Category Distribution", styles['PinMeToH2']))
+        elements.append(Spacer(1, 10))
+        # Full-width pie chart now that it's not side-by-side
+        pie_chart = create_pie_chart(categories, width=350, height=180)
+        elements.append(pie_chart)
 
     elements.append(PageBreak())
     return elements
@@ -953,7 +951,24 @@ def create_reviews_section(data: dict, styles) -> list:
     ))
     elements.append(Spacer(1, 25))
 
-    # Sentiment distribution pie chart
+    # Top themes table first (to match order of other pages: table then chart)
+    themes = reviews_data.get('topThemes', [])
+    if themes:
+        elements.append(Paragraph("Top Review Themes", styles['PinMeToH2']))
+        elements.append(Spacer(1, 10))
+        table_data = [['Theme', 'Mentions', 'Sentiment']]
+        for theme in themes:
+            table_data.append([
+                theme.get('theme', ''),
+                str(theme.get('mentions', '')),
+                theme.get('sentiment', '').title()
+            ])
+        table = Table(table_data, colWidths=[200, 100, 120])
+        table.setStyle(get_data_table_style())
+        elements.append(table)
+        elements.append(Spacer(1, 30))
+
+    # Sentiment distribution pie chart below the table
     sentiment = reviews_data.get('sentiment', {})
     if sentiment:
         elements.append(Paragraph("Sentiment Distribution", styles['PinMeToH2']))
@@ -965,26 +980,6 @@ def create_reviews_section(data: dict, styles) -> list:
         ]
         chart = create_pie_chart(sentiment_data)
         elements.append(chart)
-        elements.append(Spacer(1, 30))
-
-    # Top themes table - wrap header and table together to prevent orphaning
-    themes = reviews_data.get('topThemes', [])
-    if themes:
-        table_data = [['Theme', 'Mentions', 'Sentiment']]
-        for theme in themes:
-            table_data.append([
-                theme.get('theme', ''),
-                str(theme.get('mentions', '')),
-                theme.get('sentiment', '').title()
-            ])
-        table = Table(table_data, colWidths=[200, 100, 120])
-        table.setStyle(get_data_table_style())
-        themes_section = [
-            Paragraph("Top Review Themes", styles['PinMeToH2']),
-            Spacer(1, 10),
-            table
-        ]
-        elements.append(KeepTogether(themes_section))
 
     elements.append(PageBreak())
     return elements
