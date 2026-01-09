@@ -1,6 +1,27 @@
 ---
 name: pinmeto-location-reports
-description: "Generates professional PDF and PowerPoint reports from PinMeTo location analytics data. Use when requesting location performance reports, Google Business insights, Facebook metrics, Apple Maps analytics, keyword analysis, or executive summaries for multi-location brands."
+description: "Generates professional PDF and PowerPoint reports from PinMeTo location analytics data. Use for: quarterly reports, Q1/Q2/Q3/Q4 reports, monthly reports, yearly/annual reports, half-yearly/H1/H2 reports, location analytics, Google Business Profile insights, Facebook page metrics, Apple Maps analytics, keyword analysis, review analysis, executive summaries, board presentations, performance reports, or any report request mentioning PinMeTo, locations, or multi-location brands."
+triggers:
+  - "quarterly report"
+  - "Q1 report"
+  - "Q2 report"
+  - "Q3 report"
+  - "Q4 report"
+  - "monthly report"
+  - "annual report"
+  - "yearly report"
+  - "H1 report"
+  - "H2 report"
+  - "location report"
+  - "location analytics"
+  - "PinMeTo"
+  - "Google Business"
+  - "create a report"
+  - "generate report"
+  - "performance report"
+  - "analytics report"
+  - "executive summary"
+  - "board presentation"
 ---
 
 # PinMeTo Location Analytics Reports
