@@ -53,16 +53,16 @@ git clone git@github.com:PinMeTo/skills.git
 cd skills
 
 # Copy marketplace templates
-cp ~/Projects/code/pinmeto-location-analytics-skill/marketplace-template/marketplace.json .
-cp ~/Projects/code/pinmeto-location-analytics-skill/marketplace-template/README.md .
-cp ~/Projects/code/pinmeto-location-analytics-skill/marketplace-template/setup-marketplace.sh .
+cp ~/Projects/code/pinmeto-location-reports-skill/marketplace-template/marketplace.json .
+cp ~/Projects/code/pinmeto-location-reports-skill/marketplace-template/README.md .
+cp ~/Projects/code/pinmeto-location-reports-skill/marketplace-template/setup-marketplace.sh .
 
 # Run setup
 ./setup-marketplace.sh
 
 # Add your first skill
 mkdir -p skills
-cp ~/Projects/code/pinmeto-location-analytics-skill/dist/pinmeto-location-reports.skill skills/
+cp ~/Projects/code/pinmeto-location-reports-skill/dist/pinmeto-location-reports.skill skills/
 
 # Commit and push
 git add .
@@ -97,7 +97,7 @@ claude /plugin install https://github.com/PinMeTo/skills
 5. **Publish to marketplace**:
    ```bash
    cd ~/Projects/code/skills
-   cp ~/Projects/code/pinmeto-location-analytics-skill/dist/pinmeto-location-reports.skill skills/
+   cp ~/Projects/code/pinmeto-location-reports-skill/dist/pinmeto-location-reports.skill skills/
    # Update version in marketplace.json
    git add .
    git commit -m "[pinmeto-location-reports] Update to v1.1.0"

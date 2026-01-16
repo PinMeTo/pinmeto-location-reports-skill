@@ -36,7 +36,7 @@ git clone git@github.com:PinMeTo/skills.git
 cd skills
 
 # Copy the packaged skill
-cp ~/Projects/code/pinmeto-location-analytics-skill/dist/pinmeto-location-reports.skill ./skills/
+cp ~/Projects/code/pinmeto-location-reports-skill/dist/pinmeto-location-reports.skill ./skills/
 
 # Commit and push
 git add skills/pinmeto-location-reports.skill

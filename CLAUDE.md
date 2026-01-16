@@ -11,7 +11,7 @@ For detailed project documentation, data schemas, and domain knowledge, see [AGE
 ## Architecture
 
 ```
-pinmeto-location-analytics-skill/
+pinmeto-location-reports-skill/
 ├── pinmeto-location-reports/         # Skill package
 │   ├── SKILL.md                      # Skill definition (triggers, workflow, branding)
 │   ├── scripts/
