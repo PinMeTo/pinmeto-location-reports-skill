@@ -89,3 +89,10 @@ In Claude Desktop, you should now be able to ask for location analytics reports 
 ## Questions?
 
 Ask Claude! It can explain any metric, clarify report sections, or help you understand the data.
+
+## License
+
+© 2025 PinMeTo AB. All rights reserved.
+
+Use of this skill is restricted to authorized users of PinMeTo's services.
+See [LICENSE](./LICENSE) for full terms.

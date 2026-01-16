@@ -1,4 +1,6 @@
 #!/usr/bin/env node
+// © 2025 PinMeTo AB. All rights reserved.
+// See LICENSE file for full terms.
 /**
  * Fetch real data from PinMeTo MCP server and format for report generation.
  *

@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+# © 2025 PinMeTo AB. All rights reserved.
+# See LICENSE file for full terms.
 """
 PinMeTo Location Analytics PowerPoint Generator
 
