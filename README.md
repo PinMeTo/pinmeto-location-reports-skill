@@ -1,4 +1,4 @@
-# PinMeTo Location Analytics Skill
+# PinMeTo Location Reports Skill
 
 [![Latest Release](https://img.shields.io/github/v/release/PinMeTo/pinmeto-location-reports-skill)](https://github.com/PinMeTo/pinmeto-location-reports-skill/releases/latest)
 [![Download](https://img.shields.io/github/downloads/PinMeTo/pinmeto-location-reports-skill/total)](https://github.com/PinMeTo/pinmeto-location-reports-skill/releases/latest/download/pinmeto-location-reports.skill)
