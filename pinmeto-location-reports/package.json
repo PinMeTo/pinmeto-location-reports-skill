@@ -1,7 +1,7 @@
 {
   "name": "pinmeto-location-reports",
   "version": "1.0.0",
-  "description": "",
+  "description": "Generate executive-ready location analytics reports (PDF & PowerPoint) from your PinMeTo data using Claude Code. Perfect for board meetings and business reviews.",
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
