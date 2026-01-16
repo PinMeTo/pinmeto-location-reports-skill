@@ -7,10 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.2] - 2025-01-16
+
 ### Added
 - Automated release workflow via GitHub Actions
-- Installation instructions in README
-- Download badges and release links
+- Installation instructions in README with direct download links
+- Release badges showing version and download count
+- CHANGELOG.md for version tracking
+- Updated publishing documentation with automated workflow
 
 ## [1.0.1] - 2025-01-12
 
@@ -29,6 +33,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Professional branding and layouts
 - Chart generation for analytics data
 
-[Unreleased]: https://github.com/PinMeTo/pinmeto-location-analytics-skill/compare/v1.0.1...HEAD
+[Unreleased]: https://github.com/PinMeTo/pinmeto-location-analytics-skill/compare/v1.0.2...HEAD
+[1.0.2]: https://github.com/PinMeTo/pinmeto-location-analytics-skill/compare/v1.0.1...v1.0.2
 [1.0.1]: https://github.com/PinMeTo/pinmeto-location-analytics-skill/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/PinMeTo/pinmeto-location-analytics-skill/releases/tag/v1.0.0
