@@ -39,7 +39,7 @@ jobs:
 
             ```bash
             # Download and install
-            curl -L -o pinmeto-location-reports.skill https://github.com/PinMeTo/pinmeto-location-analytics-skill/releases/download/${{ steps.get_version.outputs.VERSION }}/pinmeto-location-reports.skill
+            curl -L -o pinmeto-location-reports.skill https://github.com/PinMeTo/pinmeto-location-reports-skill/releases/download/${{ steps.get_version.outputs.VERSION }}/pinmeto-location-reports.skill
             mkdir -p ~/.claude/skills
             mv pinmeto-location-reports.skill ~/.claude/skills/
             ```

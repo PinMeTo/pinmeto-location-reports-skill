@@ -50,12 +50,12 @@ Users can install the skill directly from GitHub releases:
 
 ### Option 1: One-Click Download
 
-Visit the [latest release](https://github.com/PinMeTo/pinmeto-location-analytics-skill/releases/latest) and download `pinmeto-location-reports.skill`, then copy it to `~/.claude/skills/`
+Visit the [latest release](https://github.com/PinMeTo/pinmeto-location-reports-skill/releases/latest) and download `pinmeto-location-reports.skill`, then copy it to `~/.claude/skills/`
 
 ### Option 2: Command Line
 
 ```bash
-curl -L -o pinmeto-location-reports.skill https://github.com/PinMeTo/pinmeto-location-analytics-skill/releases/latest/download/pinmeto-location-reports.skill
+curl -L -o pinmeto-location-reports.skill https://github.com/PinMeTo/pinmeto-location-reports-skill/releases/latest/download/pinmeto-location-reports.skill
 mkdir -p ~/.claude/skills
 mv pinmeto-location-reports.skill ~/.claude/skills/
 ```

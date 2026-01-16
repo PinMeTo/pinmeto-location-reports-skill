@@ -1,7 +1,7 @@
 # PinMeTo Location Analytics Skill
 
-[![Latest Release](https://img.shields.io/github/v/release/PinMeTo/pinmeto-location-analytics-skill)](https://github.com/PinMeTo/pinmeto-location-analytics-skill/releases/latest)
-[![Download](https://img.shields.io/github/downloads/PinMeTo/pinmeto-location-analytics-skill/total)](https://github.com/PinMeTo/pinmeto-location-analytics-skill/releases/latest/download/pinmeto-location-reports.skill)
+[![Latest Release](https://img.shields.io/github/v/release/PinMeTo/pinmeto-location-reports-skill)](https://github.com/PinMeTo/pinmeto-location-reports-skill/releases/latest)
+[![Download](https://img.shields.io/github/downloads/PinMeTo/pinmeto-location-reports-skill/total)](https://github.com/PinMeTo/pinmeto-location-reports-skill/releases/latest/download/pinmeto-location-reports.skill)
 
 Generate professional, board-ready reports from your PinMeTo location analytics data using Claude Desktop.
 
@@ -50,13 +50,13 @@ Simply ask Claude to create a report. Here are some examples:
 
 ### Step 1: Download the Skill
 
-**[📥 Download Latest Version](https://github.com/PinMeTo/pinmeto-location-analytics-skill/releases/latest/download/pinmeto-location-reports.skill)**
+**[📥 Download Latest Version](https://github.com/PinMeTo/pinmeto-location-reports-skill/releases/latest/download/pinmeto-location-reports.skill)**
 
 Or install via command line:
 
 ```bash
 # Download and install the latest version
-curl -L -o pinmeto-location-reports.skill https://github.com/PinMeTo/pinmeto-location-analytics-skill/releases/latest/download/pinmeto-location-reports.skill
+curl -L -o pinmeto-location-reports.skill https://github.com/PinMeTo/pinmeto-location-reports-skill/releases/latest/download/pinmeto-location-reports.skill
 mkdir -p ~/.claude/skills
 mv pinmeto-location-reports.skill ~/.claude/skills/
 ```
