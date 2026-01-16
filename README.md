@@ -38,7 +38,7 @@ Each report contains insights from your connected platforms:
 
 Simply ask Claude to create a report. Here are some examples:
 
-> "Create a monthly location analytics report for November 2024"
+> "Create a monthly location report for November 2024"
 
 > "Generate a Q4 2024 report as PDF and PowerPoint"
 
@@ -67,7 +67,7 @@ After copying the `.skill` file to `~/.claude/skills/`, restart Claude Desktop t
 
 ### Step 3: Verify Installation
 
-In Claude Desktop, you should now be able to ask for location analytics reports and Claude will use this skill to generate them.
+In Claude Desktop, you should now be able to ask for location reports and Claude will use this skill to generate them.
 
 ## Requirements
 
