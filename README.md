@@ -1,5 +1,8 @@
 # PinMeTo Location Analytics Skill
 
+[![Latest Release](https://img.shields.io/github/v/release/PinMeTo/pinmeto-location-analytics-skill)](https://github.com/PinMeTo/pinmeto-location-analytics-skill/releases/latest)
+[![Download](https://img.shields.io/github/downloads/PinMeTo/pinmeto-location-analytics-skill/total)](https://github.com/PinMeTo/pinmeto-location-analytics-skill/releases/latest/download/pinmeto-location-reports.skill)
+
 Generate professional, board-ready reports from your PinMeTo location analytics data using Claude Desktop.
 
 ## What This Skill Does
@@ -43,9 +46,32 @@ Simply ask Claude to create a report. Here are some examples:
 
 > "Create a half-yearly report for H2 2024"
 
+## Installation
+
+### Step 1: Download the Skill
+
+**[📥 Download Latest Version](https://github.com/PinMeTo/pinmeto-location-analytics-skill/releases/latest/download/pinmeto-location-reports.skill)**
+
+Or install via command line:
+
+```bash
+# Download and install the latest version
+curl -L -o pinmeto-location-reports.skill https://github.com/PinMeTo/pinmeto-location-analytics-skill/releases/latest/download/pinmeto-location-reports.skill
+mkdir -p ~/.claude/skills
+mv pinmeto-location-reports.skill ~/.claude/skills/
+```
+
+### Step 2: Restart Claude Desktop
+
+After copying the `.skill` file to `~/.claude/skills/`, restart Claude Desktop to load the skill.
+
+### Step 3: Verify Installation
+
+In Claude Desktop, you should now be able to ask for location analytics reports and Claude will use this skill to generate them.
+
 ## Requirements
 
-- **Claude Desktop** with the PinMeTo Location Analytics skill installed
+- **Claude Desktop** (latest version)
 - **PinMeTo MCP Server** connected to your PinMeTo account
 
 ## Output Formats
