@@ -3,7 +3,7 @@
 [![Latest Release](https://img.shields.io/github/v/release/PinMeTo/pinmeto-location-reports-skill)](https://github.com/PinMeTo/pinmeto-location-reports-skill/releases/latest)
 [![Download](https://img.shields.io/github/downloads/PinMeTo/pinmeto-location-reports-skill/total)](https://github.com/PinMeTo/pinmeto-location-reports-skill/releases/latest/download/pinmeto-location-reports.skill)
 
-Generate professional, board-ready reports from your PinMeTo location analytics data using Claude Desktop.
+Generate professional, board-ready reports from your PinMeTo location analytics data using Claude Desktop, Claude Code, or Claude.ai.
 
 ## What This Skill Does
 
@@ -46,33 +46,75 @@ Simply ask Claude to create a report. Here are some examples:
 
 > "Create a half-yearly report for H2 2024"
 
+## Prerequisites
+
+Before installing this skill, you need the [PinMeTo MCP Server](https://github.com/PinMeTo/pinmeto-location-mcp) connected to your PinMeTo account. The MCP server provides access to your location analytics data that this skill uses to generate reports.
+
+See the [PinMeTo MCP Server documentation](https://github.com/PinMeTo/pinmeto-location-mcp#installation) for installation instructions.
+
 ## Installation
 
-### Step 1: Download the Skill
+### For Claude Desktop & Claude.ai
 
 **[📥 Download Latest Version](https://github.com/PinMeTo/pinmeto-location-reports-skill/releases/latest/download/pinmeto-location-reports.skill)**
 
-Or install via command line:
+1. Download the [latest .skill file](https://github.com/PinMeTo/pinmeto-location-reports-skill/releases/latest/download/pinmeto-location-reports.skill)
+2. Go to **Settings** → **Capabilities** in Claude
+3. Enable **"Code execution and file creation"**
+4. Click **"Upload skill"** and select the downloaded `.skill` file
+5. The skill will be available immediately in your conversations
+
+### For Claude Code (CLI)
+
+Install via command line:
 
 ```bash
 # Download and install the latest version
-curl -L -o pinmeto-location-reports.skill https://github.com/PinMeTo/pinmeto-location-reports-skill/releases/latest/download/pinmeto-location-reports.skill
+curl -L -o pinmeto-location-reports.skill \
+  https://github.com/PinMeTo/pinmeto-location-reports-skill/releases/latest/download/pinmeto-location-reports.skill
+
+# Install globally (available in all projects)
 mkdir -p ~/.claude/skills
 mv pinmeto-location-reports.skill ~/.claude/skills/
+
+# OR install locally (for current project only)
+mkdir -p .claude/skills
+mv pinmeto-location-reports.skill .claude/skills/
 ```
 
-### Step 2: Restart Claude Desktop
+Claude Code will automatically discover and load the skill. No restart required.
 
-After copying the `.skill` file to `~/.claude/skills/`, restart Claude Desktop to load the skill.
+### Verify Installation
 
-### Step 3: Verify Installation
+Ask Claude to create a report:
+> "Create a monthly location report for November 2024"
 
-In Claude Desktop, you should now be able to ask for location reports and Claude will use this skill to generate them.
+If the skill is installed correctly, Claude will use it to generate your report.
+
+### Troubleshooting
+
+**Skill not activating automatically?**
+
+If Claude doesn't use the skill automatically, explicitly tell it to use the skill:
+
+> "Use the PinMeTo Location Reports skill to create a monthly report for November 2024"
+
+or
+
+> "Using the location reports skill, generate a Q4 2024 report"
+
+This helps Claude recognize that you want to use this specific skill for your request.
 
 ## Requirements
 
-- **Claude Desktop** (latest version)
-- **PinMeTo MCP Server** connected to your PinMeTo account
+**For Claude Desktop & Claude.ai:**
+- Claude Desktop or Claude.ai with Pro, Team, or Enterprise plan
+- Code execution capability enabled
+- [PinMeTo MCP Server](https://github.com/PinMeTo/pinmeto-location-mcp) connected to your PinMeTo account
+
+**For Claude Code:**
+- Claude Code CLI (latest version)
+- [PinMeTo MCP Server](https://github.com/PinMeTo/pinmeto-location-mcp) connected to your PinMeTo account
 
 ## Output Formats
 
