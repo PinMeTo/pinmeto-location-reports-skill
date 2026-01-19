@@ -1,7 +1,7 @@
 # PinMeTo Location Reports Skill
 
 [![Latest Release](https://img.shields.io/github/v/release/PinMeTo/pinmeto-location-reports-skill)](https://github.com/PinMeTo/pinmeto-location-reports-skill/releases/latest)
-[![Download .skill](https://img.shields.io/badge/Download-.skill-blue)](https://github.com/PinMeTo/pinmeto-location-reports-skill/releases/latest/download/pinmeto-location-reports.skill)
+[![Download .skill](https://img.shields.io/badge/Download-.skill-green)](https://github.com/PinMeTo/pinmeto-location-reports-skill/releases/latest/download/pinmeto-location-reports.skill)
 
 Generate professional, board-ready reports from your PinMeTo location analytics data using Claude Desktop, Claude Code, or Claude.ai.
 
