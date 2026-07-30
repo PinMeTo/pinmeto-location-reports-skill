@@ -287,6 +287,7 @@ than for marks.
 | Prior wash | `#C9DCF3` | Prior-period series (de-emphasis, not a slot) |
 | Status good | `#0E7C4A` | Positive change |
 | Status bad | `#CC3311` | Negative change |
+| Star amber | `#C77700` | Star rating fill |
 
 **Direction is never colour alone.** Every delta carries a triangle (▲ / ▼ / –) alongside the
 status colour, because the previous green/orange pair measured ΔE 1.8 under protanopia: red-green
@@ -311,6 +312,9 @@ node <dataviz-skill>/scripts/validate_palette.js "#1F7AE0,#E8690B,#5B4B8A" --mod
   routinely have close values (52% vs 38%), where arc length stops being comparable.
 - Only the current series is directly labelled. A number above every bar goes unread; the
   recessive grid and the table carry the rest.
+- A KPI with a `max` renders as stars (see
+  [references/data-schema.md](references/data-schema.md)). The last star is filled to the exact
+  remainder rather than rounded to a half, so the stars never overstate the printed number.
 
 ### Typography
 - **Headlines:** Montserrat (Bold/SemiBold) for all headers and short text

@@ -226,6 +226,11 @@ CHART_PRIOR = colors.HexColor('#C9DCF3')
 STATUS_GOOD = colors.HexColor('#0E7C4A')
 STATUS_BAD = colors.HexColor('#CC3311')
 
+# Star rating fill. Conventionally gold, but it has to clear 3:1 against the tile
+# surface: brand orange measures 2.3:1 and a lighter gold is worse. This amber
+# passes and still reads as a star colour rather than a data hue.
+STAR_AMBER = colors.HexColor('#C77700')
+
 # Ink and chrome
 INK = PINMETO_BLUE_MARINE
 INK_MUTED = colors.HexColor('#5A6472')
@@ -739,6 +744,81 @@ def _direction_triangle(drawing, x, y, direction, color, size=4.0):
     drawing.add(Polygon(points, fillColor=color, strokeColor=None))
 
 
+def _star_points(cx, cy, outer_radius):
+    """Vertices of a five-pointed star centred on (cx, cy), point upwards."""
+    import math
+    # 0.382 is the classic geometric star, but its points read as thin spikes at
+    # 11pt. A larger inner radius gives a solider shape that survives small sizes
+    # and print.
+    inner_radius = outer_radius * 0.47
+    points = []
+    for i in range(10):
+        angle = -math.pi / 2 + i * math.pi / 5
+        radius = outer_radius if i % 2 == 0 else inner_radius
+        points.extend([cx + radius * math.cos(angle), cy + radius * math.sin(angle)])
+    return points
+
+
+def draw_star_rating(drawing, x, y, value, max_value, size=11, gap=2.5,
+                     fill_color=None, track_color=None):
+    """Draw a star rating with an exact partial final star.
+
+    The stars are filled to the true value rather than rounded to the nearest
+    half: a mark must not overstate its number, and 4.3 rounded up to 4.5 stars
+    would. The fractional star is clipped horizontally to the exact remainder.
+
+    Returns the width consumed, so callers can lay out beside it.
+    """
+    from reportlab.graphics.shapes import Group, Polygon, definePath
+
+    fill_color = fill_color or STAR_AMBER
+    track_color = track_color or colors.HexColor('#DCE3EC')
+
+    try:
+        value = float(value)
+        star_count = int(float(max_value))
+    except (TypeError, ValueError):
+        return 0
+
+    if star_count <= 0:
+        return 0
+
+    radius = size / 2.0
+    step = size + gap
+
+    for index in range(star_count):
+        cx = x + radius + index * step
+        cy = y + radius
+        points = _star_points(cx, cy, radius)
+
+        # Track star underneath, so the remainder still reads as "out of five".
+        drawing.add(Polygon(points, fillColor=track_color, strokeColor=None))
+
+        remainder = value - index
+        if remainder <= 0:
+            continue
+
+        if remainder >= 1:
+            drawing.add(Polygon(points, fillColor=fill_color, strokeColor=None))
+            continue
+
+        # Partial star: clip the filled star to the exact fraction.
+        left = cx - radius
+        clip_width = size * remainder
+        group = Group()
+        group.add(definePath(
+            [('moveTo', left, y),
+             ('lineTo', left + clip_width, y),
+             ('lineTo', left + clip_width, y + size),
+             ('lineTo', left, y + size),
+             ('closePath',)],
+            isClipPath=1, fillColor=None, strokeColor=None))
+        group.add(Polygon(points, fillColor=fill_color, strokeColor=None))
+        drawing.add(group)
+
+    return star_count * step - gap
+
+
 def create_kpi_cards(kpis: list, width=500) -> Drawing:
     """Create a row of KPI stat tiles.
 
@@ -809,20 +889,17 @@ def create_kpi_cards(kpis: list, width=500) -> Drawing:
 
         baseline = y + 12
 
-        # Optional meter, for a value that means nothing without its scale.
+        # A rating is read as stars, so draw stars. The final star is filled to the
+        # exact remainder rather than rounded, so the mark never overstates the
+        # number printed above it.
         if max_value:
             try:
-                fraction = max(0.0, min(1.0, float(str(value).replace(',', '')) / float(max_value)))
-            except (ValueError, TypeError, ZeroDivisionError):
-                fraction = None
-            if fraction is not None:
-                track_width = tile_width - 24
-                # Unfilled track is a lighter step of the same hue, so state reads
-                # across the whole bar rather than only where the fill ends.
-                drawing.add(Rect(pad_left, baseline + 1, track_width, 3,
-                                 fillColor=CHART_PRIOR, strokeColor=None))
-                drawing.add(Rect(pad_left, baseline + 1, track_width * fraction, 3,
-                                 fillColor=CHART_BLUE, strokeColor=None))
+                numeric_value = float(str(value).replace(',', ''))
+            except (ValueError, TypeError):
+                numeric_value = None
+            if numeric_value is not None:
+                draw_star_rating(drawing, pad_left, baseline - 1,
+                                 numeric_value, max_value, size=11, gap=2.5)
                 continue
 
         # Delta: triangle plus text, both in the status colour.

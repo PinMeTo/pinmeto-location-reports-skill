@@ -108,6 +108,9 @@ CHART_COLORS = {
     'good': '#0E7C4A',
     'neutral': '#9AA4B2',
     'bad': '#CC3311',
+    # Star fill. Conventionally gold, but it must clear 3:1 on the tile surface:
+    # brand orange measures 2.3:1 and a lighter gold is worse.
+    'star': '#C77700',
     'green': '#0E7C4A',       # retained alias
 }
 
@@ -220,6 +223,74 @@ def generate_bar_chart_image(chart_data, title, has_prior_data=False, current_la
     # Save to bytes - use fixed figure size, not bbox_inches='tight'
     buf = io.BytesIO()
     plt.savefig(buf, format='png', dpi=150, facecolor='white', pad_inches=0.1)
+    plt.close(fig)
+    buf.seek(0)
+    return buf
+
+
+def generate_star_rating_image(value, max_value=5, star_size=64):
+    """Render a star rating as a transparent PNG.
+
+    Drawn as an image rather than as DrawingML star shapes so it matches the PDF
+    exactly and avoids per-renderer gradient quirks in PowerPoint and Keynote.
+    This is the same approach the charts already use for Keynote compatibility.
+
+    The final star is clipped to the exact remainder rather than rounded to a half
+    star, so the mark never overstates the number printed above it.
+    """
+    if not MATPLOTLIB_AVAILABLE:
+        return None
+
+    try:
+        value = float(value)
+        star_count = int(float(max_value))
+    except (TypeError, ValueError):
+        return None
+    if star_count <= 0:
+        return None
+
+    import math
+    from matplotlib.patches import Polygon, Rectangle
+
+    def star_vertices(cx, cy, outer=1.0):
+        # A larger inner radius than the classic 0.382 keeps the points from
+        # reading as thin spikes at small sizes.
+        inner = outer * 0.47
+        pts = []
+        for i in range(10):
+            angle = -math.pi / 2 + i * math.pi / 5
+            r = outer if i % 2 == 0 else inner
+            pts.append((cx + r * math.cos(angle), cy + r * math.sin(angle)))
+        return pts
+
+    step = 2.4  # centre-to-centre spacing in star radii
+    fig_w = star_count * step
+    fig, ax = plt.subplots(figsize=(fig_w * 0.16, 0.34), dpi=300)
+    fig.patch.set_alpha(0)
+    ax.set_axis_off()
+    ax.set_xlim(-1.2, (star_count - 1) * step + 1.2)
+    ax.set_ylim(-1.2, 1.2)
+    ax.set_aspect('equal')
+
+    for index in range(star_count):
+        cx = index * step
+        # Track star, so the remainder still reads as "out of five".
+        ax.add_patch(Polygon(star_vertices(cx, 0), closed=True,
+                             facecolor=CHART_COLORS['hairline'], edgecolor='none'))
+        remainder = value - index
+        if remainder <= 0:
+            continue
+        filled = Polygon(star_vertices(cx, 0), closed=True,
+                         facecolor=CHART_COLORS['star'], edgecolor='none')
+        ax.add_patch(filled)
+        if remainder < 1:
+            clip = Rectangle((cx - 1.0, -1.2), 2.0 * remainder, 2.4,
+                             transform=ax.transData)
+            filled.set_clip_path(clip)
+
+    buf = io.BytesIO()
+    plt.savefig(buf, format='png', dpi=300, transparent=True,
+                bbox_inches='tight', pad_inches=0.01)
     plt.close(fig)
     buf.seek(0)
     return buf
@@ -694,29 +765,12 @@ def create_executive_summary(prs, data):
                          bold=True)
 
             if max_value:
-                # Meter: gives an otherwise context-free number its scale. The
-                # unfilled track is a lighter step of the same hue.
-                try:
-                    fraction = max(0.0, min(1.0, float(str(value).replace(",", "")) / float(max_value)))
-                except (ValueError, TypeError, ZeroDivisionError):
-                    fraction = None
-                if fraction is not None:
-                    track_w = tile_w - 0.28
-                    track = slide.shapes.add_shape(
-                        MSO_SHAPE.RECTANGLE, text_x, Inches(y + 0.92),
-                        Inches(track_w), Inches(0.05))
-                    track.fill.solid()
-                    track.fill.fore_color.rgb = Brand.CHART_PRIOR
-                    track.line.fill.background()
-                    track.shadow.inherit = False
-                    if fraction > 0:
-                        fill = slide.shapes.add_shape(
-                            MSO_SHAPE.RECTANGLE, text_x, Inches(y + 0.92),
-                            Inches(track_w * fraction), Inches(0.05))
-                        fill.fill.solid()
-                        fill.fill.fore_color.rgb = Brand.CHART_BLUE
-                        fill.line.fill.background()
-                        fill.shadow.inherit = False
+                # A rating is read as stars, so draw stars.
+                star_image = generate_star_rating_image(
+                    str(value).replace(",", ""), max_value)
+                if star_image:
+                    slide.shapes.add_picture(star_image, text_x, Inches(y + 0.84),
+                                             height=Inches(0.20))
                     continue
 
             change = kpi.get("change", "")

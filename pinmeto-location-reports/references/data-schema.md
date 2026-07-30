@@ -67,10 +67,16 @@ Each KPI **must** have a `name` field:
 "kpis": [
   {"name": "Total Views", "value": "6,685", "change": "+15% YoY"},
   {"name": "Customer Actions", "value": "1,531", "change": "+12%"},
-  {"name": "Average Rating", "value": "3.2", "change": "No change"},
+  {"name": "Average Rating", "value": "4.3", "max": 5},
   {"name": "Total Reviews", "value": "4", "change": "+2"}
 ]
 ```
+
+**Optional `max`** turns the tile into a star rating instead of a change indicator, for a value
+that means nothing without its scale. `{"value": "4.3", "max": 5}` renders `4.3 / 5` with four
+filled stars and a fifth filled to exactly 30%. Set it on rating KPIs and leave it off
+everywhere else. A KPI with `max` ignores `change`, so put the rating delta in
+`reviews.ratingChange` instead.
 
 ## Platform Metrics (google, facebook, apple)
 

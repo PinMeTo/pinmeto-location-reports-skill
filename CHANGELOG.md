@@ -75,7 +75,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   validated with the dataviz skill's palette validator rather than by eye.
   - Stat tiles: label above value, value in ink instead of brand blue (text should not wear a
     data colour), a single accent rule instead of a full outline, and a row of four instead of
-    a 2x2 block. A KPI carrying `max` renders a meter, so a 4.3 rating shows as 4.3 / 5.
+    a 2x2 block. A KPI carrying `max` renders a star rating, so a 4.3 shows as 4.3 / 5 with
+    four filled stars and a fifth filled to exactly 30% (not rounded to a half star, which
+    would overstate it). Stars use a validated amber; brand orange measures 2.3:1 on the
+    tile surface.
   - Delta indicators now carry a triangle as well as a colour. The previous green/orange pair
     measured ΔE 1.8 under protanopia, meaning red-green colourblind readers could not
     distinguish a rise from a fall. The new pair measures ΔE 9.6.
