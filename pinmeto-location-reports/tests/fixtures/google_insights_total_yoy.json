@@ -1,0 +1,55 @@
+{
+  "insights": [
+    {
+      "metric": "BUSINESS_IMPRESSIONS_DESKTOP_SEARCH",
+      "value": 1461,
+      "priorValue": 1171,
+      "delta": 290,
+      "deltaPercent": 24.765157984628523
+    },
+    {
+      "metric": "BUSINESS_DIRECTION_REQUESTS",
+      "value": 351,
+      "priorValue": 281,
+      "delta": 70,
+      "deltaPercent": 24.91103202846975
+    },
+    {
+      "metric": "BUSINESS_IMPRESSIONS_MOBILE_MAPS",
+      "value": 139,
+      "priorValue": 110,
+      "delta": 29,
+      "deltaPercent": 26.36363636363636
+    },
+    {
+      "metric": "CALL_CLICKS",
+      "value": 4,
+      "priorValue": 4,
+      "delta": 0,
+      "deltaPercent": 0
+    },
+    {
+      "metric": "BUSINESS_IMPRESSIONS_MOBILE_SEARCH",
+      "value": 334,
+      "priorValue": 269,
+      "delta": 65,
+      "deltaPercent": 24.1635687732342
+    },
+    {
+      "metric": "WEBSITE_CLICKS",
+      "value": 80,
+      "priorValue": 63,
+      "delta": 17,
+      "deltaPercent": 26.984126984126984
+    },
+    {
+      "metric": "BUSINESS_IMPRESSIONS_DESKTOP_MAPS",
+      "value": 69,
+      "priorValue": 56,
+      "delta": 13,
+      "deltaPercent": 23.214285714285715
+    }
+  ],
+  "timeAggregation": "total",
+  "compareWith": "prior_year"
+}
