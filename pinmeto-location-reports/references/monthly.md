@@ -18,22 +18,27 @@
 For December 2025: `from: "2025-12-01"`, `to: "2025-12-31"`
 
 ```
-1. pinmeto_get_locations(fields=["store_id", "name", "city", "country"])
+1. pinmeto_get_locations(fields=["storeId", "name", "address"])
 
 2. pinmeto_get_google_insights(from="2025-12-01", to="2025-12-31", aggregation="monthly", compare_with="prior_year")
 
-3. pinmeto_get_google_ratings(from="2025-12-01", to="2025-12-31", aggregation="monthly")
+3. pinmeto_get_google_ratings(from="2025-12-01", to="2025-12-31")
 
-4. pinmeto_get_google_keywords(from="2025-12-01", to="2025-12-31", limit=10)
+4. pinmeto_get_google_keywords(from="2025-12", to="2025-12")   // YYYY-MM; take top 10 client-side
 
-5. pinmeto_get_google_reviews(from="2025-12-01", to="2025-12-31", limit=30)
+5. pinmeto_get_google_review_insights(from="2025-12-01", to="2025-12-31", analysisType="summary")
 
-6. pinmeto_get_facebook_insights(from="2025-12-01", to="2025-12-31", aggregation="monthly", compare_with="prior_year")
+6. pinmeto_get_google_reviews(from="2025-12-01", to="2025-12-31", limit=30)   // themes + pull quotes
 
-7. pinmeto_get_facebook_ratings(from="2025-12-01", to="2025-12-31", aggregation="monthly")
+7. pinmeto_get_facebook_insights(from="2025-12-01", to="2025-12-31", aggregation="monthly", compare_with="prior_year")
 
-8. pinmeto_get_apple_insights(from="2025-12-01", to="2025-12-31", aggregation="monthly")
+8. pinmeto_get_facebook_ratings(from="2025-12-01", to="2025-12-31")
+
+9. pinmeto_get_apple_insights(from="2025-12-01", to="2025-12-31", aggregation="monthly", compare_with="prior_year")
 ```
+
+Ratings tools take no `aggregation`. Keywords take `YYYY-MM` and have no `limit`. See
+[workflow-details.md](workflow-details.md) for the full parameter contracts.
 
 **Note:** Only add a second call with `compare_with="prior_period"` if user explicitly requests MoM comparison.
 

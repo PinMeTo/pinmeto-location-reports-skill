@@ -40,9 +40,9 @@ pinmeto_get_google_insights({
 
 pinmeto_get_google_ratings({
   "from": "2025-10-01",
-  "to": "2025-12-31",
-  "aggregation": "quarterly"
+  "to": "2025-12-31"
 })
+// Ratings tools accept no aggregation and no compare_with - both are silently dropped
 
 pinmeto_get_facebook_insights({
   "from": "2025-10-01",

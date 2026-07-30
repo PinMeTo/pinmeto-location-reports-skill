@@ -7,7 +7,7 @@
 | Page Count | 12-20 pages |
 | Top Keywords | 20 |
 | Comparisons | HoH (prior_period) + YoY (prior_year) |
-| Aggregation | half_yearly (summary), quarterly/monthly (trends) |
+| Aggregation | half-yearly (summary), quarterly/monthly (trends) |
 
 ## MCP Data Fetching Sequence
 
@@ -18,30 +18,34 @@
 For H2 2025: `from: "2025-07-01"`, `to: "2025-12-31"`
 
 ```
-1. pinmeto_get_locations(fields=["store_id", "name", "city", "country", "region"])
+1. pinmeto_get_locations(fields=["storeId", "name", "address"])
 
-2. pinmeto_get_google_insights(from="2025-07-01", to="2025-12-31", aggregation="half_yearly", compare_with="prior_year")
+2. pinmeto_get_google_insights(from="2025-07-01", to="2025-12-31", aggregation="half-yearly", compare_with="prior_year")
 
 3. pinmeto_get_google_insights(from="2025-07-01", to="2025-12-31", aggregation="quarterly")
 
 4. pinmeto_get_google_insights(from="2025-07-01", to="2025-12-31", aggregation="monthly")
 
-5. pinmeto_get_google_ratings(from="2025-07-01", to="2025-12-31", aggregation="half_yearly")
+5. pinmeto_get_google_ratings(from="2025-07-01", to="2025-12-31")
 
-6. pinmeto_get_google_ratings(from="2025-07-01", to="2025-12-31", aggregation="monthly")
+6. pinmeto_get_google_keywords(from="2025-07", to="2025-12")   // YYYY-MM; take top 20 client-side
 
-7. pinmeto_get_google_keywords(from="2025-07-01", to="2025-12-31", limit=20)
+7. pinmeto_get_google_review_insights(from="2025-07-01", to="2025-12-31", analysisType="comparison")
 
-8. pinmeto_get_google_reviews(from="2025-07-01", to="2025-12-31", limit=100)
+8. pinmeto_get_google_reviews(from="2025-07-01", to="2025-12-31", limit=100)   // themes + pull quotes
 
-9. pinmeto_get_facebook_insights(from="2025-07-01", to="2025-12-31", aggregation="half_yearly", compare_with="prior_year")
+9. pinmeto_get_facebook_insights(from="2025-07-01", to="2025-12-31", aggregation="half-yearly", compare_with="prior_year")
 
 10. pinmeto_get_facebook_brandpage_insights(from="2025-07-01", to="2025-12-31")
 
-11. pinmeto_get_facebook_ratings(from="2025-07-01", to="2025-12-31", aggregation="half_yearly")
+11. pinmeto_get_facebook_ratings(from="2025-07-01", to="2025-12-31")
 
-12. pinmeto_get_apple_insights(from="2025-07-01", to="2025-12-31", aggregation="half_yearly")
+12. pinmeto_get_apple_insights(from="2025-07-01", to="2025-12-31", aggregation="half-yearly", compare_with="prior_year")
 ```
+
+`half-yearly` is hyphenated: `half_yearly` is rejected with `-32602`. Ratings tools take no
+`aggregation`, so monthly rating trends need one call per month. Keywords take `YYYY-MM` and
+have no `limit`. See [workflow-details.md](workflow-details.md) for the full contracts.
 
 **Note:** Only add a second call with `compare_with="prior_period"` if user explicitly requests HoH comparison.
 

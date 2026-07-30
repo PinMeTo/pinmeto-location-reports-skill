@@ -18,26 +18,31 @@
 For Q4 2025: `from: "2025-10-01"`, `to: "2025-12-31"`
 
 ```
-1. pinmeto_get_locations(fields=["store_id", "name", "city", "country", "region"])
+1. pinmeto_get_locations(fields=["storeId", "name", "address"])
 
 2. pinmeto_get_google_insights(from="2025-10-01", to="2025-12-31", aggregation="quarterly", compare_with="prior_year")
 
 3. pinmeto_get_google_insights(from="2025-10-01", to="2025-12-31", aggregation="monthly")  // Monthly trends
 
-4. pinmeto_get_google_ratings(from="2025-10-01", to="2025-12-31", aggregation="quarterly")
+4. pinmeto_get_google_ratings(from="2025-10-01", to="2025-12-31")
 
-5. pinmeto_get_google_keywords(from="2025-10-01", to="2025-12-31", limit=15)
+5. pinmeto_get_google_keywords(from="2025-10", to="2025-12")   // YYYY-MM; take top 15 client-side
 
-6. pinmeto_get_google_reviews(from="2025-10-01", to="2025-12-31", limit=50)
+6. pinmeto_get_google_review_insights(from="2025-10-01", to="2025-12-31", analysisType="summary")
 
-7. pinmeto_get_facebook_insights(from="2025-10-01", to="2025-12-31", aggregation="quarterly", compare_with="prior_year")
+7. pinmeto_get_google_reviews(from="2025-10-01", to="2025-12-31", limit=50)   // themes + pull quotes
 
-8. pinmeto_get_facebook_brandpage_insights(from="2025-10-01", to="2025-12-31")
+8. pinmeto_get_facebook_insights(from="2025-10-01", to="2025-12-31", aggregation="quarterly", compare_with="prior_year")
 
-9. pinmeto_get_facebook_ratings(from="2025-10-01", to="2025-12-31", aggregation="quarterly")
+9. pinmeto_get_facebook_brandpage_insights(from="2025-10-01", to="2025-12-31")
 
-10. pinmeto_get_apple_insights(from="2025-10-01", to="2025-12-31", aggregation="quarterly")
+10. pinmeto_get_facebook_ratings(from="2025-10-01", to="2025-12-31")
+
+11. pinmeto_get_apple_insights(from="2025-10-01", to="2025-12-31", aggregation="quarterly", compare_with="prior_year")
 ```
+
+Ratings tools take no `aggregation`. Keywords take `YYYY-MM` and have no `limit`. See
+[workflow-details.md](workflow-details.md) for the full parameter contracts.
 
 **Note:** Only add a second call with `compare_with="prior_period"` if user explicitly requests QoQ comparison.
 

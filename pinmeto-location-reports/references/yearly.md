@@ -17,7 +17,7 @@
 For 2025: `from: "2025-01-01"`, `to: "2025-12-31"`
 
 ```
-1. pinmeto_get_locations(fields=["store_id", "name", "city", "country", "region"])
+1. pinmeto_get_locations(fields=["storeId", "name", "address"])
 
 2. pinmeto_get_google_insights(from="2025-01-01", to="2025-12-31", aggregation="yearly", compare_with="prior_year")
 
@@ -25,22 +25,29 @@ For 2025: `from: "2025-01-01"`, `to: "2025-12-31"`
 
 4. pinmeto_get_google_insights(from="2025-01-01", to="2025-12-31", aggregation="monthly")
 
-5. pinmeto_get_google_ratings(from="2025-01-01", to="2025-12-31", aggregation="yearly", compare_with="prior_year")
+5. pinmeto_get_google_ratings(from="2025-01-01", to="2025-12-31")
 
-6. pinmeto_get_google_ratings(from="2025-01-01", to="2025-12-31", aggregation="monthly")
+6. pinmeto_get_google_ratings(from="2024-01-01", to="2024-12-31")   // prior year, for the rating delta
 
-7. pinmeto_get_google_keywords(from="2025-01-01", to="2025-12-31", limit=25)
+7. pinmeto_get_google_keywords(from="2025-01", to="2025-12")   // YYYY-MM; take top 25 client-side
 
-8. pinmeto_get_google_reviews(from="2025-01-01", to="2025-12-31", limit=200)
+8. pinmeto_get_google_review_insights(from="2025-01-01", to="2025-12-31", analysisType="comparison")
 
-9. pinmeto_get_facebook_insights(from="2025-01-01", to="2025-12-31", aggregation="yearly", compare_with="prior_year")
+9. pinmeto_get_google_reviews(from="2025-01-01", to="2025-12-31", limit=200)   // themes + pull quotes
 
-10. pinmeto_get_facebook_brandpage_insights(from="2025-01-01", to="2025-12-31")
+10. pinmeto_get_facebook_insights(from="2025-01-01", to="2025-12-31", aggregation="yearly", compare_with="prior_year")
 
-11. pinmeto_get_facebook_ratings(from="2025-01-01", to="2025-12-31", aggregation="yearly")
+11. pinmeto_get_facebook_brandpage_insights(from="2025-01-01", to="2025-12-31")
 
-12. pinmeto_get_apple_insights(from="2025-01-01", to="2025-12-31", aggregation="yearly")
+12. pinmeto_get_facebook_ratings(from="2025-01-01", to="2025-12-31")
+
+13. pinmeto_get_apple_insights(from="2025-01-01", to="2025-12-31", aggregation="yearly", compare_with="prior_year")
 ```
+
+Ratings tools take no `aggregation` and no `compare_with`, so a YoY rating delta needs two
+calls (steps 5 and 6). Keywords take `YYYY-MM` and have no `limit`. A full year of reviews may
+exceed 1000 and trigger `requiresConfirmation` on review insights: re-call with
+`skipConfirmation=true`. See [workflow-details.md](workflow-details.md) for the full contracts.
 
 ## Report Structure
 
