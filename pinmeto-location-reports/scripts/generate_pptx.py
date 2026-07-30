@@ -59,7 +59,31 @@ class Brand:
     GREY = RGBColor(0xF2, 0xF3, 0xF4)
     MID_GREY = RGBColor(0x33, 0x33, 0x33)
     WHITE = RGBColor(0xFF, 0xFF, 0xFF)
-    GREEN = RGBColor(0x27, 0xAE, 0x60)
+    GREEN = RGBColor(0x27, 0xAE, 0x60)  # Deprecated: see STATUS_GOOD
+
+    # Chart & status tokens, validated with the dataviz skill's
+    # validate_palette.js. The categorical trio passes all six checks; the
+    # brand's own blue/orange/light-blue trio failed (light blue reads gray and
+    # both brand hues fall under 3:1 against the surface). These are deepened
+    # steps of the brand hues, reserved for data marks; BLUE stays the brand
+    # accent for headings and rules.
+    CHART_BLUE = RGBColor(0x1F, 0x7A, 0xE0)
+    CHART_ORANGE = RGBColor(0xE8, 0x69, 0x0B)
+    CHART_VIOLET = RGBColor(0x5B, 0x4B, 0x8A)
+    CHART_PRIOR = RGBColor(0xC9, 0xDC, 0xF3)
+
+    # Status pair. The previous green/orange measured dE 1.8 under protanopia,
+    # i.e. identical to a red-green colourblind reader. This pair measures 9.6
+    # and direction is also carried by a triangle glyph.
+    STATUS_GOOD = RGBColor(0x0E, 0x7C, 0x4A)
+    STATUS_BAD = RGBColor(0xCC, 0x33, 0x11)
+
+    INK = RGBColor(0x00, 0x13, 0x34)
+    INK_MUTED = RGBColor(0x5A, 0x64, 0x72)
+    HAIRLINE = RGBColor(0xDC, 0xE3, 0xEC)
+    TILE_SURFACE = RGBColor(0xF5, 0xF8, 0xFC)
+    TABLE_HEADER_BG = RGBColor(0xEA, 0xF2, 0xFD)
+    TABLE_ZEBRA = RGBColor(0xFA, 0xFB, 0xFD)
 
     # Font names
     HEADING_FONT = "Arial"
@@ -71,12 +95,53 @@ SLIDE_HEIGHT = Inches(5.625)
 
 # Hex color strings for matplotlib (matching Brand colors)
 CHART_COLORS = {
-    'blue': '#3399FF',
-    'orange': '#FF8854',
-    'light_blue': '#BBD9FA',
+    'blue': '#1F7AE0',        # categorical slot 1 / data marks
+    'orange': '#E8690B',      # categorical slot 2
+    'violet': '#5B4B8A',      # categorical slot 3
+    'prior': '#C9DCF3',       # prior-period wash (de-emphasis, not a slot)
+    'light_blue': '#C9DCF3',  # retained alias
     'mid_grey': '#333333',
-    'green': '#27AE60',
+    'ink': '#001334',
+    'ink_muted': '#5A6472',
+    'hairline': '#DCE3EC',
+    'track': '#F0F3F7',
+    'good': '#0E7C4A',
+    'neutral': '#9AA4B2',
+    'bad': '#CC3311',
+    'green': '#0E7C4A',       # retained alias
 }
+
+
+def change_direction(change):
+    """Classify a change string as positive (1), negative (-1) or neutral (0)."""
+    if not change:
+        return 0
+    text = str(change).strip()
+    if not text or text.upper() in {'N/A', 'NA', '-', '--'}:
+        return 0
+    if 'no change' in text.lower():
+        return 0
+    if text.startswith('-'):
+        return -1
+    if text.startswith('+'):
+        return 1
+    return 0
+
+
+def status_rgb(change):
+    """Status colour for a change string, muted when there is no direction."""
+    direction = change_direction(change)
+    if direction > 0:
+        return Brand.STATUS_GOOD
+    if direction < 0:
+        return Brand.STATUS_BAD
+    return Brand.INK_MUTED
+
+
+def direction_glyph(change):
+    """Triangle prefix so direction never depends on colour alone."""
+    direction = change_direction(change)
+    return '\u25b2 ' if direction > 0 else ('\u25bc ' if direction < 0 else '\u2013 ')
 
 # =============================================================================
 # Text Layout Constants (prevents text overlap)
@@ -107,45 +172,47 @@ def generate_bar_chart_image(chart_data, title, has_prior_data=False, current_la
     current_values = [d.get('value', 0) for d in chart_data]
 
     x = range(len(labels))
-    width = 0.35 if has_prior_data else 0.6
+    # Bars are capped rather than filling the slot, and the pair carries a small
+    # gap so touching fills read as separate marks without a stroke around them.
+    width = 0.30 if has_prior_data else 0.42
+    pair_gap = 0.02
 
-    # Current period bars
-    bars1 = ax.bar([i - width/2 if has_prior_data else i for i in x],
+    bars1 = ax.bar([i - width/2 - pair_gap if has_prior_data else i for i in x],
                    current_values, width, label=current_legend,
-                   color=CHART_COLORS['blue'])
+                   color=CHART_COLORS['blue'], zorder=3)
 
-    # Prior period bars (if available)
     if has_prior_data:
         prior_values = [d.get('priorValue', 0) for d in chart_data]
-        bars2 = ax.bar([i + width/2 for i in x], prior_values, width,
-                       label=prior_legend, color=CHART_COLORS['light_blue'])
+        bars2 = ax.bar([i + width/2 + pair_gap for i in x], prior_values, width,
+                       label=prior_legend, color=CHART_COLORS['prior'], zorder=3)
 
-    # Add value labels above current period bars
+    # Label the current series only. A number above every bar goes unread; the
+    # prior series is context, carried by the grid and the table.
     for bar in bars1:
         height_val = bar.get_height()
         ax.text(bar.get_x() + bar.get_width() / 2, height_val,
                 f'{int(height_val):,}', ha='center', va='bottom', fontsize=7,
-                color='#001334')
+                color=CHART_COLORS['ink'], zorder=4)
 
-    # Add value labels above prior period bars if present
-    if has_prior_data:
-        for bar in bars2:
-            height_val = bar.get_height()
-            ax.text(bar.get_x() + bar.get_width() / 2, height_val,
-                    f'{int(height_val):,}', ha='center', va='bottom', fontsize=7,
-                    color='#666666')
-
-    ax.set_ylabel('Value', fontsize=9)
-    ax.set_title(title, fontsize=11, fontweight='bold', color=CHART_COLORS['mid_grey'])
+    ax.set_title(title, fontsize=11, fontweight='bold', color=CHART_COLORS['ink'])
     ax.set_xticks(x)
-    ax.set_xticklabels(labels, fontsize=8, rotation=30, ha='right')
+    ax.set_xticklabels(labels, fontsize=8, rotation=30, ha='right',
+                       color=CHART_COLORS['ink'])
+    ax.yaxis.set_major_formatter(plt.FuncFormatter(lambda v, p: format(int(v), ',')))
+    ax.tick_params(axis='y', labelsize=8, colors=CHART_COLORS['ink_muted'], length=0)
+    ax.tick_params(axis='x', length=0)
 
     if has_prior_data:
-        # Place legend inside the chart at upper right to save space
-        ax.legend(loc='upper right', fontsize=8, frameon=True, facecolor='white', edgecolor='none')
+        ax.legend(loc='upper right', fontsize=8, frameon=False)
 
+    # Recessive grid: solid hairlines one shade off the surface, behind the bars.
+    ax.set_axisbelow(True)
+    ax.grid(axis='y', color=CHART_COLORS['hairline'], linewidth=0.6, linestyle='-')
     ax.spines['top'].set_visible(False)
     ax.spines['right'].set_visible(False)
+    ax.spines['left'].set_visible(False)
+    ax.spines['bottom'].set_color(CHART_COLORS['hairline'])
+    ax.spines['bottom'].set_linewidth(0.8)
 
     # Adjust layout to fit everything within figure bounds
     plt.tight_layout()
@@ -158,32 +225,63 @@ def generate_bar_chart_image(chart_data, title, has_prior_data=False, current_la
     return buf
 
 
-def generate_pie_chart_image(data, title):
-    """Generate a pie chart as PNG bytes using matplotlib."""
+def generate_breakdown_chart_image(data, title, palette=None):
+    """Horizontal labelled bars for a part-to-whole breakdown, as PNG bytes.
+
+    Replaces the pie these sections used to draw. A pie only works for
+    part-to-whole at a glance with clearly unequal segments; these breakdowns
+    routinely have close values (52% vs 38%), where arc length stops being
+    comparable and the reader ends up matching legend swatches. Bars share a
+    baseline, so close values compare directly, and each value is labelled.
+
+    Args:
+        palette: per-bar colours. Default is a single hue for every bar, correct
+            for nominal categories: they have no order, so a value-ramp would
+            double-encode length as darkness. Pass a status list only where the
+            colour genuinely means state.
+    """
     if not MATPLOTLIB_AVAILABLE:
         return None
     if not data or len(data) == 0:
         return None
 
-    fig, ax = plt.subplots(figsize=(5, 5), facecolor='white')
+    rows = [d for d in data if isinstance(d, dict)]
+    if not rows:
+        return None
 
-    labels = [d.get('label') or d.get('name', '') for d in data]
-    values = [d.get('value', 0) for d in data]
+    labels = [d.get('label') or d.get('name', '') for d in rows]
+    values = [d.get('value', 0) or 0 for d in rows]
+    total = sum(values)
+    largest = max(values) if values else 0
 
-    # Use brand colors
-    colors = [CHART_COLORS['blue'], CHART_COLORS['orange'],
-              CHART_COLORS['light_blue'], CHART_COLORS['mid_grey'],
-              CHART_COLORS['green']][:len(data)]
+    fig, ax = plt.subplots(figsize=(6, max(1.4, 0.52 * len(rows) + 0.9)),
+                           facecolor='white')
 
-    wedges, texts, autotexts = ax.pie(values, labels=labels, autopct='%1.1f%%',
-                                       colors=colors, startangle=90,
-                                       textprops={'fontsize': 10})
+    positions = list(range(len(rows)))[::-1]  # first row at the top
+    colours = palette or [CHART_COLORS['blue']] * len(rows)
 
-    ax.set_title(title, fontsize=14, fontweight='bold', color=CHART_COLORS['mid_grey'])
+    # Recessive full-scale track, so a short bar still reads as a share.
+    ax.barh(positions, [largest] * len(rows), height=0.5,
+            color=CHART_COLORS['track'], zorder=2)
+    ax.barh(positions, values, height=0.5,
+            color=[colours[i % len(colours)] for i in range(len(rows))], zorder=3)
+
+    for pos, value in zip(positions, values):
+        share = f'{round(value / total * 100)}%' if total else f'{value:,}'
+        ax.text(largest * 1.02, pos, share, va='center', ha='left',
+                fontsize=9, fontweight='bold', color=CHART_COLORS['ink'], zorder=4)
+
+    ax.set_yticks(positions)
+    ax.set_yticklabels(labels, fontsize=9, color=CHART_COLORS['ink'])
+    ax.set_xticks([])
+    ax.set_xlim(0, largest * 1.16 if largest else 1)
+    ax.tick_params(axis='y', length=0)
+    for side in ('top', 'right', 'bottom', 'left'):
+        ax.spines[side].set_visible(False)
+    ax.set_title(title, fontsize=11, fontweight='bold', color=CHART_COLORS['ink'],
+                 loc='left')
 
     plt.tight_layout()
-
-    # Save to bytes
     buf = io.BytesIO()
     plt.savefig(buf, format='png', dpi=150, bbox_inches='tight', facecolor='white')
     plt.close(fig)
@@ -191,8 +289,13 @@ def generate_pie_chart_image(data, title):
     return buf
 
 
-def generate_sentiment_pie_chart(sentiment_data):
-    """Generate a sentiment distribution pie chart."""
+def generate_sentiment_breakdown_chart(sentiment_data):
+    """Sentiment breakdown bars.
+
+    Sentiment is polarity, not identity, so this is the one breakdown where the
+    colour genuinely means state: good, neutral midpoint, bad. The labels are
+    always present, so colour is never the only channel.
+    """
     if not MATPLOTLIB_AVAILABLE:
         return None
 
@@ -201,39 +304,16 @@ def generate_sentiment_pie_chart(sentiment_data):
         {'label': 'Neutral', 'value': sentiment_data.get('neutral', 0)},
         {'label': 'Negative', 'value': sentiment_data.get('negative', 0)},
     ]
+    palette = [CHART_COLORS['good'], CHART_COLORS['neutral'], CHART_COLORS['bad']]
 
-    # Filter out zero values
-    data = [d for d in data if d['value'] > 0]
-    if not data:
+    keep = [(d, c) for d, c in zip(data, palette) if d['value'] > 0]
+    if not keep:
         return None
 
-    fig, ax = plt.subplots(figsize=(5, 5), facecolor='white')
-
-    labels = [d['label'] for d in data]
-    values = [d['value'] for d in data]
-
-    # Sentiment-specific colors
-    color_map = {
-        'Positive': CHART_COLORS['green'],
-        'Neutral': CHART_COLORS['light_blue'],
-        'Negative': CHART_COLORS['orange'],
-    }
-    colors = [color_map.get(l, CHART_COLORS['mid_grey']) for l in labels]
-
-    wedges, texts, autotexts = ax.pie(values, labels=labels, autopct='%1.1f%%',
-                                       colors=colors, startangle=90,
-                                       textprops={'fontsize': 10})
-
-    ax.set_title('Sentiment Distribution (%)', fontsize=14, fontweight='bold',
-                 color=CHART_COLORS['mid_grey'])
-
-    plt.tight_layout()
-
-    buf = io.BytesIO()
-    plt.savefig(buf, format='png', dpi=150, bbox_inches='tight', facecolor='white')
-    plt.close(fig)
-    buf.seek(0)
-    return buf
+    return generate_breakdown_chart_image(
+        [d for d, _ in keep], 'Sentiment Distribution',
+        palette=[c for _, c in keep]
+    )
 
 
 # =============================================================================
@@ -574,35 +654,76 @@ def create_executive_summary(prs, data):
                      Inches(4), Inches(0.25), font_size=12, font_name=Brand.HEADING_FONT,
                      color=Brand.BLUE_MARINE, bold=True)
 
+        # Stat tiles: label above value, value in ink (text never wears a data
+        # colour), delta carrying both a status colour and a triangle so direction
+        # survives colourblindness. Chrome is a fill plus one accent rule; an
+        # outline around a tile is ink that is not data.
         for i, kpi in enumerate(kpis[:4]):
             col = i % 2
             row = i // 2
             x = 5.5 + col * 2.2
             y = start_y + 0.35 + row * 1.4
+            tile_w, tile_h = 2.0, 1.2
 
-            # KPI box background
             box = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE,
-                                         Inches(x), Inches(y), Inches(2), Inches(1.2))
+                                         Inches(x), Inches(y), Inches(tile_w), Inches(tile_h))
             box.fill.solid()
-            box.fill.fore_color.rgb = Brand.GREY
-            box.line.color.rgb = Brand.LIGHT_BLUE
+            box.fill.fore_color.rgb = Brand.TILE_SURFACE
+            box.line.fill.background()
+            box.shadow.inherit = False
 
-            # KPI value
-            value = kpi.get("value", "N/A")
-            add_text_box(slide, value, Inches(x), Inches(y + 0.15), Inches(2), Inches(0.45),
-                         font_size=18, font_name=Brand.HEADING_FONT, color=Brand.BLUE,
-                         bold=True, align=PP_ALIGN.CENTER)
+            accent = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE,
+                                            Inches(x), Inches(y), Inches(0.04), Inches(tile_h))
+            accent.fill.solid()
+            accent.fill.fore_color.rgb = Brand.CHART_BLUE
+            accent.line.fill.background()
+            accent.shadow.inherit = False
 
-            # KPI name
+            text_x = Inches(x + 0.14)
+            text_w = Inches(tile_w - 0.24)
+
             name = kpi.get("name", "")
-            add_text_box(slide, name, Inches(x), Inches(y + 0.6), Inches(2), Inches(0.22),
-                         font_size=8, color=Brand.MID_GREY, align=PP_ALIGN.CENTER)
+            add_text_box(slide, name, text_x, Inches(y + 0.10), text_w, Inches(0.20),
+                         font_size=8, color=Brand.INK_MUTED)
 
-            # KPI change
+            value = kpi.get("value", "N/A")
+            max_value = kpi.get("max")
+            value_text = f"{value}  / {max_value}" if max_value else str(value)
+            add_text_box(slide, value_text, text_x, Inches(y + 0.32), text_w, Inches(0.45),
+                         font_size=20, font_name=Brand.HEADING_FONT, color=Brand.INK,
+                         bold=True)
+
+            if max_value:
+                # Meter: gives an otherwise context-free number its scale. The
+                # unfilled track is a lighter step of the same hue.
+                try:
+                    fraction = max(0.0, min(1.0, float(str(value).replace(",", "")) / float(max_value)))
+                except (ValueError, TypeError, ZeroDivisionError):
+                    fraction = None
+                if fraction is not None:
+                    track_w = tile_w - 0.28
+                    track = slide.shapes.add_shape(
+                        MSO_SHAPE.RECTANGLE, text_x, Inches(y + 0.92),
+                        Inches(track_w), Inches(0.05))
+                    track.fill.solid()
+                    track.fill.fore_color.rgb = Brand.CHART_PRIOR
+                    track.line.fill.background()
+                    track.shadow.inherit = False
+                    if fraction > 0:
+                        fill = slide.shapes.add_shape(
+                            MSO_SHAPE.RECTANGLE, text_x, Inches(y + 0.92),
+                            Inches(track_w * fraction), Inches(0.05))
+                        fill.fill.solid()
+                        fill.fill.fore_color.rgb = Brand.CHART_BLUE
+                        fill.line.fill.background()
+                        fill.shadow.inherit = False
+                    continue
+
             change = kpi.get("change", "")
-            change_color = Brand.ORANGE if change.startswith("-") else Brand.GREEN
-            add_text_box(slide, change, Inches(x), Inches(y + 0.85), Inches(2), Inches(0.2),
-                         font_size=9, color=change_color, align=PP_ALIGN.CENTER)
+            if change:
+                add_text_box(slide, f"{direction_glyph(change)}{change}",
+                             text_x, Inches(y + 0.86), text_w, Inches(0.22),
+                             font_size=9, color=status_rgb(change))
 
     return slide
 
@@ -669,15 +790,15 @@ def create_metrics_slide(prs, title, metrics_data, period_info):
             cell = table.cell(0, j)
             cell.text = header
             cell.fill.solid()
-            cell.fill.fore_color.rgb = Brand.BLUE
+            cell.fill.fore_color.rgb = Brand.TABLE_HEADER_BG
             p = cell.text_frame.paragraphs[0]
             p.font.bold = True
             p.font.size = Pt(9)
-            p.font.color.rgb = Brand.WHITE
+            p.font.color.rgb = Brand.INK
 
         # Data rows
         for i, metric in enumerate(metrics):
-            row_fill = Brand.WHITE if i % 2 == 0 else Brand.GREY
+            row_fill = Brand.WHITE if i % 2 == 0 else Brand.TABLE_ZEBRA
 
             if is_yearly:
                 # Yearly: 3 columns - for yearly, periodChange IS the YoY change
@@ -702,6 +823,12 @@ def create_metrics_slide(prs, title, metrics_data, period_info):
                 cell.fill.fore_color.rgb = row_fill
                 p = cell.text_frame.paragraphs[0]
                 p.font.size = Pt(9)
+                # Change columns carry direction, matching the stat tiles rather
+                # than being the one place where +22% and -27% look identical.
+                if j >= 2 and change_direction(value) != 0:
+                    p.font.color.rgb = status_rgb(value)
+                else:
+                    p.font.color.rgb = Brand.INK
 
     # Chart - bar chart image or text fallback (compares to prior year same period)
     chart_data = metrics_data.get("chartData", [])
@@ -798,15 +925,15 @@ def create_keywords_slide(prs, keywords_data, period_info):
             cell = table.cell(0, j)
             cell.text = header
             cell.fill.solid()
-            cell.fill.fore_color.rgb = Brand.BLUE
+            cell.fill.fore_color.rgb = Brand.TABLE_HEADER_BG
             p = cell.text_frame.paragraphs[0]
             p.font.bold = True
             p.font.size = Pt(9)
-            p.font.color.rgb = Brand.WHITE
+            p.font.color.rgb = Brand.INK
 
         # Data rows
         for i, kw in enumerate(keywords[:max_keywords]):
-            row_fill = Brand.WHITE if i % 2 == 0 else Brand.GREY
+            row_fill = Brand.WHITE if i % 2 == 0 else Brand.TABLE_ZEBRA
             row_data = [
                 str(i + 1),
                 kw.get("keyword", ""),
@@ -824,7 +951,7 @@ def create_keywords_slide(prs, keywords_data, period_info):
     # Category distribution - pie chart or text fallback
     categories = keywords_data.get("categoryDistribution", [])
     if categories:
-        chart_image = generate_pie_chart_image(categories, "Category Distribution")
+        chart_image = generate_breakdown_chart_image(categories, "Category Distribution")
 
         if chart_image:
             # Add pie chart image
@@ -884,7 +1011,7 @@ def create_reviews_slide(prs, reviews_data, period_info):
     # Sentiment distribution - pie chart or text fallback
     sentiment = reviews_data.get("sentiment", {})
     if sentiment:
-        chart_image = generate_sentiment_pie_chart(sentiment)
+        chart_image = generate_sentiment_breakdown_chart(sentiment)
 
         if chart_image:
             # Add sentiment pie chart
@@ -924,15 +1051,15 @@ def create_reviews_slide(prs, reviews_data, period_info):
             cell = table.cell(0, j)
             cell.text = header
             cell.fill.solid()
-            cell.fill.fore_color.rgb = Brand.BLUE
+            cell.fill.fore_color.rgb = Brand.TABLE_HEADER_BG
             p = cell.text_frame.paragraphs[0]
             p.font.bold = True
             p.font.size = Pt(9)
-            p.font.color.rgb = Brand.WHITE
+            p.font.color.rgb = Brand.INK
 
         # Data rows
         for i, theme in enumerate(themes[:5]):
-            row_fill = Brand.WHITE if i % 2 == 0 else Brand.GREY
+            row_fill = Brand.WHITE if i % 2 == 0 else Brand.TABLE_ZEBRA
             sentiment_val = theme.get("sentiment", "")
             row_data = [
                 theme.get("theme", ""),

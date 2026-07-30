@@ -265,12 +265,52 @@ field sources, and common failures: [references/data-schema.md](references/data-
 ### Colors
 | Name | Hex | Usage |
 |------|-----|-------|
-| Blue (Primary) | `#3399FF` | Headers, links, primary elements |
+| Blue (Primary) | `#3399FF` | Headings, rules, brand accents |
 | Orange (Accent) | `#FF8854` | Highlights, CTAs, emphasis |
 | Blue Marine (Dark) | `#001334` | Dark backgrounds, text |
 | Light Blue | `#bbd9fa` | Secondary backgrounds |
 | Grey | `#F2F3F4` | Light backgrounds |
 | Mid Grey | `#333333` | Body text |
+
+### Chart & status colors
+
+Data marks use deepened steps of the brand hues. The brand palette itself is a UI
+palette: measured against a white chart surface, `#bbd9fa` reads gray and both `#3399FF` and
+`#FF8854` fall below the 3:1 contrast floor, so they are kept for typography and rules rather
+than for marks.
+
+| Token | Hex | Usage |
+|-------|-----|-------|
+| Chart blue | `#1F7AE0` | Categorical slot 1, all single-series bars |
+| Chart orange | `#E8690B` | Categorical slot 2 |
+| Chart violet | `#5B4B8A` | Categorical slot 3 |
+| Prior wash | `#C9DCF3` | Prior-period series (de-emphasis, not a slot) |
+| Status good | `#0E7C4A` | Positive change |
+| Status bad | `#CC3311` | Negative change |
+
+**Direction is never colour alone.** Every delta carries a triangle (▲ / ▼ / –) alongside the
+status colour, because the previous green/orange pair measured ΔE 1.8 under protanopia: red-green
+colourblind readers could not tell a rise from a fall.
+
+Both generators define these tokens at the top of the file. If they change, re-run the
+`dataviz` skill's validator rather than eyeballing the result:
+
+```bash
+node <dataviz-skill>/scripts/validate_palette.js "#1F7AE0,#E8690B,#5B4B8A" --mode light
+```
+
+### Chart conventions
+
+- Categorical hues are assigned in fixed slot order, so a chart with fewer series never
+  repaints the survivors.
+- Nominal categories (keyword types, themes) get **one** hue for every bar. Identity comes from
+  the labels; a darker-where-bigger ramp would double-encode length as colour.
+- Sentiment is polarity, so it is the one breakdown where colour means state: good, neutral
+  gray, bad.
+- Part-to-whole breakdowns render as labelled horizontal bars, not pies. These distributions
+  routinely have close values (52% vs 38%), where arc length stops being comparable.
+- Only the current series is directly labelled. A number above every bar goes unread; the
+  recessive grid and the table carry the rest.
 
 ### Typography
 - **Headlines:** Montserrat (Bold/SemiBold) for all headers and short text

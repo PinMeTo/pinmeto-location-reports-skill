@@ -71,6 +71,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Redesigned the Performance Metrics tiles, tables, and charts.** Colour choices were
+  validated with the dataviz skill's palette validator rather than by eye.
+  - Stat tiles: label above value, value in ink instead of brand blue (text should not wear a
+    data colour), a single accent rule instead of a full outline, and a row of four instead of
+    a 2x2 block. A KPI carrying `max` renders a meter, so a 4.3 rating shows as 4.3 / 5.
+  - Delta indicators now carry a triangle as well as a colour. The previous green/orange pair
+    measured ΔE 1.8 under protanopia, meaning red-green colourblind readers could not
+    distinguish a rise from a fall. The new pair measures ΔE 9.6.
+  - Chart marks moved to a validated trio (`#1F7AE0`, `#E8690B`, `#5B4B8A`). The brand's own
+    blue/orange/light-blue trio failed three checks: `#bbd9fa` reads gray, and both brand hues
+    fall below 3:1 against a white chart surface. Brand blue remains the heading/rule accent.
+  - Tables: tinted header with ink text instead of a saturated blue block, hairline row rules
+    instead of a box around every cell, and change columns now coloured by direction so the
+    table agrees with the tiles.
+  - Bar charts: capped bar width with a gap between paired bars, only the current series
+    directly labelled, and a recessive solid grid carrying the rest.
+  - Category and sentiment breakdowns render as labelled horizontal bars instead of pies. Both
+    distributions routinely have close values (52% vs 38%), where arc length stops being
+    comparable and the reader is left matching legend swatches. This also removed a page break
+    that had been orphaning the chart onto a page of its own.
 - SKILL.md restructured for progressive disclosure: consolidated the three repeated copies of
   the parameter rules into one section, moved the report data schema to `references/`, and
   rewrote the frontmatter description in third person with concrete trigger phrases.

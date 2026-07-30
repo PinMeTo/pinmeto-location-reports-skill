@@ -194,10 +194,89 @@ PINMETO_BLUE_MARINE = colors.HexColor('#001334')
 PINMETO_LIGHT_BLUE = colors.HexColor('#bbd9fa')
 PINMETO_GREY = colors.HexColor('#F2F3F4')
 PINMETO_MID_GREY = colors.HexColor('#333333')
-PINMETO_GREEN = colors.HexColor('#28a745')  # For positive changes
+PINMETO_GREEN = colors.HexColor('#28a745')  # Deprecated: see STATUS_GOOD
 
-# Chart colors cycle
-CHART_COLORS = [PINMETO_BLUE, PINMETO_ORANGE, PINMETO_LIGHT_BLUE, PINMETO_MID_GREY]
+# =============================================================================
+# Chart & status tokens
+# =============================================================================
+# Validated with the dataviz skill's validate_palette.js (light surface).
+#
+# Categorical trio '#1F7AE0,#E8690B,#5B4B8A' passes all six checks: lightness
+# band, chroma floor, CVD separation (worst adjacent dE 25.3 protan), the
+# normal-vision floor, and 3:1 contrast against the surface. The brand's own
+# #3399FF/#FF8854/#bbd9fa trio FAILED: #bbd9fa sits outside the lightness band
+# and under the chroma floor (it reads gray), and both brand hues fall below 3:1.
+# These are slightly deepened steps of the brand hues, reserved for data marks;
+# PINMETO_BLUE remains the brand accent for headings and rules.
+CHART_BLUE = colors.HexColor('#1F7AE0')     # categorical slot 1
+CHART_ORANGE = colors.HexColor('#E8690B')   # categorical slot 2
+CHART_VIOLET = colors.HexColor('#5B4B8A')   # categorical slot 3
+
+# Prior-period wash. Deliberately recessive: a prior period is the same metric
+# earlier, not a separate identity, so it is a de-emphasis step rather than a
+# categorical slot (it would fail the categorical chroma floor, correctly).
+# Relief comes from the legend plus direct labels on the current series.
+CHART_PRIOR = colors.HexColor('#C9DCF3')
+
+# Status tokens, reserved for direction of change and never reused as a series
+# color. The previous pair (#28a745 green / #FF8854 orange) measured dE 1.8 under
+# protanopia, i.e. indistinguishable to red-green colorblind readers. This pair
+# measures dE 9.6 (deutan) and both clear 3:1. Direction is ALSO encoded with a
+# triangle glyph, so colour is never the only channel.
+STATUS_GOOD = colors.HexColor('#0E7C4A')
+STATUS_BAD = colors.HexColor('#CC3311')
+
+# Ink and chrome
+INK = PINMETO_BLUE_MARINE
+INK_MUTED = colors.HexColor('#5A6472')
+HAIRLINE = colors.HexColor('#DCE3EC')
+TILE_SURFACE = colors.HexColor('#F5F8FC')
+TABLE_HEADER_BG = colors.HexColor('#EAF2FD')
+TABLE_ZEBRA = colors.HexColor('#FAFBFD')
+
+# Categorical order is fixed: slot N always gets the same hue regardless of how
+# many slices are present, so a filtered chart never repaints its survivors.
+CHART_COLORS = [CHART_BLUE, CHART_ORANGE, CHART_VIOLET, INK_MUTED]
+
+# Diverging/status ramp for sentiment: good -> neutral gray midpoint -> bad.
+SENTIMENT_COLORS = [STATUS_GOOD, colors.HexColor('#9AA4B2'), STATUS_BAD]
+
+
+def change_direction(change) -> int:
+    """Classify a change string as positive (1), negative (-1), or neutral (0).
+
+    Neutral covers 'N/A', 'No change', empty, and an explicit zero, none of which
+    should be painted as a win or a loss.
+    """
+    if not change:
+        return 0
+    text = str(change).strip()
+    if not text or text.upper() in {'N/A', 'NA', '-', '--'}:
+        return 0
+    if 'no change' in text.lower():
+        return 0
+    stripped = text.lstrip('+-')
+    if stripped and stripped[0].isdigit():
+        try:
+            if float(stripped.rstrip('% YoYQoQMoMpts').strip() or 0) == 0:
+                return 0
+        except ValueError:
+            pass
+    if text.startswith('-'):
+        return -1
+    if text.startswith('+'):
+        return 1
+    return 0
+
+
+def status_color(change):
+    """Status colour for a change string, or muted ink when there is no direction."""
+    direction = change_direction(change)
+    if direction > 0:
+        return STATUS_GOOD
+    if direction < 0:
+        return STATUS_BAD
+    return INK_MUTED
 
 
 # =============================================================================
@@ -315,32 +394,69 @@ def get_pinmeto_styles():
 # =============================================================================
 # Table Styling
 # =============================================================================
-def get_data_table_style():
-    """Standard data table styling."""
-    return TableStyle([
-        # Header row
-        ('BACKGROUND', (0, 0), (-1, 0), PINMETO_BLUE),
-        ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
-        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-        ('FONTSIZE', (0, 0), (-1, 0), 10),
-        ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
-        ('BOTTOMPADDING', (0, 0), (-1, 0), 8),
-        ('TOPPADDING', (0, 0), (-1, 0), 8),
+def get_data_table_style(text_columns=()):
+    """Standard data table styling.
 
-        # Data rows
+    Args:
+        text_columns: indices of columns holding text rather than numbers. These
+            align left in BOTH the header and the body; numeric columns align
+            right in both. A header aligned opposite its own column reads as a
+            layout bug.
+
+    Chrome is recessive: a tinted header with ink text rather than a saturated
+    blue block, hairline row rules instead of a full cell grid, and a barely-there
+    zebra. A boxed grid puts a line around every number, which is a lot of ink
+    that carries no information.
+    """
+    commands = [
+        # Header row: tint + ink, with a single rule carrying the brand colour.
+        ('BACKGROUND', (0, 0), (-1, 0), TABLE_HEADER_BG),
+        ('TEXTCOLOR', (0, 0), (-1, 0), INK),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, 0), 9),
+        ('ALIGN', (0, 0), (0, 0), 'LEFT'),
+        ('ALIGN', (1, 0), (-1, 0), 'RIGHT'),
+        # (text_columns overrides are appended below)
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 7),
+        ('TOPPADDING', (0, 0), (-1, 0), 7),
+        ('LINEBELOW', (0, 0), (-1, 0), 1.2, CHART_BLUE),
+
+        # Data rows. Header and body share alignment so columns read as columns.
         ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
         ('FONTSIZE', (0, 1), (-1, -1), 9),
+        ('TEXTCOLOR', (0, 1), (-1, -1), INK),
         ('ALIGN', (0, 1), (0, -1), 'LEFT'),
         ('ALIGN', (1, 1), (-1, -1), 'RIGHT'),
         ('BOTTOMPADDING', (0, 1), (-1, -1), 6),
         ('TOPPADDING', (0, 1), (-1, -1), 6),
+        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, TABLE_ZEBRA]),
 
-        # Alternating row colors
-        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, PINMETO_GREY]),
+        # Hairline rules only, one shade off the surface.
+        ('LINEBELOW', (0, 1), (-1, -2), 0.4, HAIRLINE),
+        ('LINEBELOW', (0, -1), (-1, -1), 0.8, HAIRLINE),
+    ]
+    for column in text_columns:
+        commands.append(('ALIGN', (column, 0), (column, -1), 'LEFT'))
+    return TableStyle(commands)
 
-        # Grid
-        ('GRID', (0, 0), (-1, -1), 0.5, PINMETO_LIGHT_BLUE),
-    ])
+
+def change_column_styles(table_data, first_change_col=2):
+    """Status colours for the change columns of a metrics table.
+
+    Returns TableStyle commands so a reader sees direction in the table the same
+    way they see it on the stat tiles, instead of the tables being the one place
+    where +22% and -27% look identical.
+    """
+    commands = []
+    for row_index, row in enumerate(table_data[1:], start=1):
+        for col_index in range(first_change_col, len(row)):
+            value = row[col_index]
+            if change_direction(value) != 0:
+                commands.append(
+                    ('TEXTCOLOR', (col_index, row_index), (col_index, row_index),
+                     status_color(value))
+                )
+    return commands
 
 
 def get_kpi_table_style():
@@ -451,59 +567,71 @@ def create_bar_chart(data: list[dict], width=400, height=200, current_label=None
     return drawing
 
 
-def create_pie_chart(data: list[dict], width=300, height=200) -> Drawing:
-    """Create a branded pie chart with legend. Returns empty Drawing if data is invalid."""
+def create_category_bars(data: list[dict], width=495, palette=None,
+                         show_share=True) -> Drawing:
+    """Horizontal labelled bars for a part-to-whole breakdown.
+
+    Replaces the pie this section used to draw. A pie is only legible for
+    part-to-whole at a glance with clearly unequal segments; these breakdowns
+    routinely have close values (52% vs 40%), where arc length stops being
+    comparable and the reader is left matching legend swatches. Bars share a
+    common baseline, so close values are directly comparable, and every value is
+    labelled rather than encoded in colour.
+
+    Args:
+        palette: per-bar colours. Default is a single hue for every bar, which is
+            correct for nominal categories: they have no order, so a value-ramp
+            would double-encode length as darkness and burn the colour channel on
+            information the bar already shows. Pass SENTIMENT_COLORS only where the
+            colour genuinely means state (good / neutral / bad).
+        show_share: append each value as a percentage of the total.
+    """
+    if not data or not isinstance(data, list):
+        return Drawing(width, 10)
+
+    rows = [d for d in data if isinstance(d, dict)]
+    if not rows:
+        return Drawing(width, 10)
+
+    label_width = 96
+    value_width = 44
+    bar_height = 13
+    row_gap = 9
+    track_width = max(60, width - label_width - value_width - 16)
+
+    total = sum(d.get('value', 0) or 0 for d in rows)
+    largest = max((d.get('value', 0) or 0) for d in rows) or 1
+
+    height = len(rows) * (bar_height + row_gap)
     drawing = Drawing(width, height)
 
-    # Guard against empty or invalid data
-    if not data or not isinstance(data, list):
-        return drawing
+    for i, item in enumerate(rows):
+        value = item.get('value', 0) or 0
+        # Bars are drawn top-down; ReportLab's origin is bottom-left.
+        y = height - (i + 1) * (bar_height + row_gap) + row_gap
 
-    # Scale pie size based on available width
-    if width < 220:
-        # Compact layout for narrow containers (e.g., keywords section)
-        pie_size = 70
-        pie_x = 10
-        legend_x = pie_x + pie_size + 15  # 15pt gap after pie
-    else:
-        # Standard layout
-        pie_size = 120
-        pie_x = 50
-        legend_x = 200
+        drawing.add(String(0, y + 3, str(item.get('label', '')),
+                           fontSize=9, fontName='Helvetica',
+                           fillColor=INK, textAnchor='start'))
 
-    pie = Pie()
-    pie.x = pie_x
-    pie.y = (height - pie_size) // 2  # Center vertically
-    pie.width = pie_size
-    pie.height = pie_size
+        # Recessive track shows the full scale, so a short bar still reads as a
+        # share of something rather than floating in space.
+        drawing.add(Rect(label_width, y, track_width, bar_height,
+                         fillColor=colors.HexColor('#F0F3F7'), strokeColor=None))
 
-    # Extract data
-    pie.data = [d.get('value', 0) for d in data]
-    pie.labels = None  # Hide slice labels, use legend instead
+        colour = palette[i % len(palette)] if palette else CHART_BLUE
+        bar_length = track_width * (value / largest) if largest else 0
+        if bar_length > 0:
+            drawing.add(Rect(label_width, y, bar_length, bar_height,
+                             fillColor=colour, strokeColor=None))
 
-    # Apply colors
-    for i, _ in enumerate(data):
-        pie.slices[i].fillColor = CHART_COLORS[i % len(CHART_COLORS)]
-
-    pie.slices.fontName = 'Helvetica'
-    pie.slices.fontSize = 8
-
-    drawing.add(pie)
-
-    # Add legend on the right side with proper spacing
-    from reportlab.graphics.charts.legends import Legend
-    legend = Legend()
-    legend.x = legend_x
-    legend.y = height - 50  # Position near top
-    legend.fontName = 'Helvetica'
-    legend.fontSize = 8
-    legend.alignment = 'left'
-    legend.columnMaximum = len(data)
-    legend.colorNamePairs = [
-        (CHART_COLORS[i % len(CHART_COLORS)], d.get('label', ''))
-        for i, d in enumerate(data)
-    ]
-    drawing.add(legend)
+        if show_share and total > 0:
+            text = f'{round(value / total * 100)}%'
+        else:
+            text = format_metric_value(value)
+        drawing.add(String(width, y + 3, text,
+                           fontSize=9, fontName='Helvetica-Bold',
+                           fillColor=INK, textAnchor='end'))
 
     return drawing
 
@@ -528,40 +656,46 @@ def generate_bar_chart_image(data: list[dict], width=450, height=220, current_la
     fig, ax = plt.subplots(figsize=(width / 72, height / 72), dpi=150)
 
     x = list(range(len(labels)))
-    bar_width = 0.35 if has_prior else 0.5
+    # Bars are capped rather than filling the slot: the leftover band is air, and
+    # the pair sits with a small gap so adjacent fills read as separate marks
+    # without a stroke drawn around them.
+    bar_width = 0.30 if has_prior else 0.42
+    pair_gap = 0.02
 
-    # Draw current period bars
     if has_prior:
-        bars1 = ax.bar([i - bar_width / 2 for i in x], values, bar_width,
-                       label=current_label or 'Current', color='#3399FF')
-        bars2 = ax.bar([i + bar_width / 2 for i in x], prior_values, bar_width,
-                       label=prior_label or 'Prior', color='#bbd9fa')
+        bars1 = ax.bar([i - bar_width / 2 - pair_gap for i in x], values, bar_width,
+                       label=current_label or 'Current', color='#1F7AE0', zorder=3)
+        bars2 = ax.bar([i + bar_width / 2 + pair_gap for i in x], prior_values, bar_width,
+                       label=prior_label or 'Prior', color='#C9DCF3', zorder=3)
     else:
-        bars1 = ax.bar(x, values, bar_width, label=current_label or 'Current', color='#3399FF')
+        bars1 = ax.bar(x, values, bar_width, label=current_label or 'Current',
+                       color='#1F7AE0', zorder=3)
         bars2 = None
 
-    # Add value labels above current period bars
+    # Label the current series only. A number above every bar is chaos and goes
+    # unread; the prior series is context, and the y-axis plus the table carry it.
     for bar in bars1:
         height_val = bar.get_height()
         ax.text(bar.get_x() + bar.get_width() / 2, height_val,
                 f'{int(height_val):,}', ha='center', va='bottom', fontsize=7,
-                color='#001334')
-
-    # Add value labels above prior period bars if present
-    if bars2:
-        for bar in bars2:
-            height_val = bar.get_height()
-            ax.text(bar.get_x() + bar.get_width() / 2, height_val,
-                    f'{int(height_val):,}', ha='center', va='bottom', fontsize=7,
-                    color='#666666')
+                color='#001334', zorder=4)
 
     # Style the chart
     ax.set_xticks(x)
-    ax.set_xticklabels(labels, fontsize=9)
+    ax.set_xticklabels(labels, fontsize=9, color='#001334')
     ax.yaxis.set_major_formatter(plt.FuncFormatter(lambda x, p: format(int(x), ',')))
-    ax.tick_params(axis='y', labelsize=8)
+    ax.tick_params(axis='y', labelsize=8, colors='#5A6472', length=0)
+    ax.tick_params(axis='x', length=0)
+
+    # Recessive grid: solid hairlines one shade off the surface, behind the bars.
+    # It carries the values that are no longer directly labelled.
+    ax.set_axisbelow(True)
+    ax.grid(axis='y', color='#DCE3EC', linewidth=0.6, linestyle='-')
     ax.spines['top'].set_visible(False)
     ax.spines['right'].set_visible(False)
+    ax.spines['left'].set_visible(False)
+    ax.spines['bottom'].set_color('#DCE3EC')
+    ax.spines['bottom'].set_linewidth(0.8)
 
     # Add title showing what value is displayed
     if value_name:
@@ -582,91 +716,124 @@ def generate_bar_chart_image(data: list[dict], width=450, height=220, current_la
     return buf
 
 
-def create_kpi_cards(kpis: list, width=400) -> Drawing:
-    """
-    Create a 2x2 grid of KPI cards matching PPTX style.
+def _direction_triangle(drawing, x, y, direction, color, size=4.0):
+    """Draw a small up/down triangle as the delta's non-colour channel.
 
-    Each card shows:
-    - Large value in blue
-    - Metric name in grey
-    - Change indicator in green/orange
+    Colour alone must never carry direction (a protan reader sees green and red as
+    the same hue), so every delta ships with this glyph. Drawn as a polygon rather
+    than a text character because the base-14 PDF fonts have no triangle glyph.
+    """
+    if direction == 0:
+        # Neutral: a short dash, so 'no change' does not imply a direction.
+        drawing.add(Rect(x, y + size / 2, size * 1.6, 1.1,
+                         fillColor=color, strokeColor=None))
+        return
+
+    half = size * 0.62
+    if direction > 0:
+        points = [x, y, x + half * 2, y, x + half, y + size]
+    else:
+        points = [x, y + size, x + half * 2, y + size, x + half, y]
+
+    from reportlab.graphics.shapes import Polygon
+    drawing.add(Polygon(points, fillColor=color, strokeColor=None))
+
+
+def create_kpi_cards(kpis: list, width=500) -> Drawing:
+    """Create a row of KPI stat tiles.
+
+    Follows the stat-tile contract: label, value, delta, and an optional meter.
+
+    - Label sits above the value; the value is the loudest thing in the tile.
+    - The value wears ink, not the brand blue. Text never wears a data colour;
+      identity comes from the accent rule beside it.
+    - The delta carries a status colour AND a triangle, so direction survives
+      colourblindness and greyscale printing.
+    - A KPI carrying a 'max' renders a meter (e.g. a 4.3 rating out of 5), which
+      gives an otherwise context-free number its scale.
+    - Chrome is a fill plus one accent rule. No outline: a border around a tile is
+      ink that is not data.
     """
     if not kpis:
         return Drawing(width, 10)
 
-    # Card dimensions
-    card_width = 180
-    card_height = 75
-    gap = 15
+    tiles = kpis[:4]
+    count = len(tiles)
+    gap = 12
+    tile_height = 76
+    tile_width = (width - gap * (count - 1)) / count
 
-    # Calculate total drawing dimensions
-    total_width = card_width * 2 + gap
-    total_height = card_height * 2 + gap
+    drawing = Drawing(width, tile_height)
 
-    drawing = Drawing(total_width, total_height)
+    for i, kpi in enumerate(tiles):
+        x = i * (tile_width + gap)
+        y = 0
 
-    for i, kpi in enumerate(kpis[:4]):
-        col = i % 2
-        row = i // 2
+        # Tile surface, no stroke.
+        drawing.add(Rect(x, y, tile_width, tile_height,
+                         fillColor=TILE_SURFACE, strokeColor=None,
+                         rx=3, ry=3))
 
-        # Position: ReportLab y is bottom-up, so row 0 is at top
-        x = col * (card_width + gap)
-        y = total_height - (row + 1) * (card_height + gap) + gap
+        # Accent rule: the tile's only chrome, and where the brand colour lives.
+        drawing.add(Rect(x, y, 3, tile_height,
+                         fillColor=CHART_BLUE, strokeColor=None))
 
-        # Card background with rounded corners effect (using Rect)
-        rect = Rect(x, y, card_width, card_height)
-        rect.fillColor = PINMETO_GREY
-        rect.strokeColor = PINMETO_LIGHT_BLUE
-        rect.strokeWidth = 1
-        rect.rx = 5  # Rounded corners
-        rect.ry = 5
-        drawing.add(rect)
+        pad_left = x + 12
+        text_top = y + tile_height - 16
 
-        # KPI value (centered, large blue text)
-        value = kpi.get('value', 'N/A')
-        value_text = String(
-            x + card_width / 2,
-            y + card_height - 28,
-            str(value),
-            fontSize=22,
-            fontName='Helvetica-Bold',
-            fillColor=PINMETO_BLUE,
-            textAnchor='middle'
-        )
-        drawing.add(value_text)
-
-        # KPI name (centered, grey text)
+        # Label above the value.
         name = kpi.get('name', '')
-        name_text = String(
-            x + card_width / 2,
-            y + card_height / 2 - 8,
-            name,
-            fontSize=9,
-            fontName='Helvetica',
-            fillColor=PINMETO_MID_GREY,
-            textAnchor='middle'
-        )
-        drawing.add(name_text)
+        if name:
+            drawing.add(String(pad_left, text_top, str(name),
+                               fontSize=8, fontName='Helvetica',
+                               fillColor=INK_MUTED, textAnchor='start'))
 
-        # KPI change (centered, colored based on positive/negative)
+        # Value: the loudest element, in ink.
+        value = kpi.get('value', 'N/A')
+        max_value = kpi.get('max')
+        value_size = 22 if len(str(value)) <= 7 else 18
+        value_baseline = text_top - value_size - 4
+        drawing.add(String(pad_left, value_baseline, str(value),
+                           fontSize=value_size, fontName='Helvetica-Bold',
+                           fillColor=INK, textAnchor='start'))
+
+        # Scale rides beside the value, not on the meter track, so the two never
+        # collide however wide the tile is.
+        if max_value:
+            from reportlab.pdfbase.pdfmetrics import stringWidth
+            offset = stringWidth(str(value), 'Helvetica-Bold', value_size)
+            drawing.add(String(pad_left + offset + 3, value_baseline,
+                               f'/ {max_value}', fontSize=9,
+                               fontName='Helvetica', fillColor=INK_MUTED,
+                               textAnchor='start'))
+
+        baseline = y + 12
+
+        # Optional meter, for a value that means nothing without its scale.
+        if max_value:
+            try:
+                fraction = max(0.0, min(1.0, float(str(value).replace(',', '')) / float(max_value)))
+            except (ValueError, TypeError, ZeroDivisionError):
+                fraction = None
+            if fraction is not None:
+                track_width = tile_width - 24
+                # Unfilled track is a lighter step of the same hue, so state reads
+                # across the whole bar rather than only where the fill ends.
+                drawing.add(Rect(pad_left, baseline + 1, track_width, 3,
+                                 fillColor=CHART_PRIOR, strokeColor=None))
+                drawing.add(Rect(pad_left, baseline + 1, track_width * fraction, 3,
+                                 fillColor=CHART_BLUE, strokeColor=None))
+                continue
+
+        # Delta: triangle plus text, both in the status colour.
         change = kpi.get('change', '')
         if change:
-            # Determine color based on change direction
-            if change.startswith('-'):
-                change_color = PINMETO_ORANGE
-            else:
-                change_color = PINMETO_GREEN
-
-            change_text = String(
-                x + card_width / 2,
-                y + 12,
-                change,
-                fontSize=10,
-                fontName='Helvetica',
-                fillColor=change_color,
-                textAnchor='middle'
-            )
-            drawing.add(change_text)
+            direction = change_direction(change)
+            colour = status_color(change)
+            _direction_triangle(drawing, pad_left, baseline, direction, colour)
+            drawing.add(String(pad_left + 12, baseline, str(change),
+                               fontSize=9, fontName='Helvetica',
+                               fillColor=colour, textAnchor='start'))
 
     return drawing
 
@@ -916,7 +1083,7 @@ def create_executive_summary(data: dict, styles) -> list:
         elements.append(Spacer(1, 20))
         elements.append(Paragraph("Performance Metrics", styles['PinMeToH2']))
         elements.append(Spacer(1, 10))
-        elements.append(create_kpi_cards(kpis))
+        elements.append(create_kpi_cards(kpis, width=495))
 
     elements.append(PageBreak())
     return elements
@@ -1001,7 +1168,10 @@ def create_metrics_section(data: dict, platform: str, styles, period_info: dict 
                 ])
             table = Table(table_data, colWidths=[160, 100, 115, 115])
 
-        table.setStyle(get_data_table_style())
+        style = get_data_table_style()
+        for command in change_column_styles(table_data, first_change_col=2):
+            style.add(*command)
+        table.setStyle(style)
         elements.append(table)
 
     # Chart if data available (compares to prior year same period)
@@ -1078,7 +1248,7 @@ def create_keywords_section(data: dict, styles) -> list:
             ])
 
         keywords_table = Table(table_data, colWidths=[40, 220, 100, 130])
-        keywords_table.setStyle(get_data_table_style())
+        keywords_table.setStyle(get_data_table_style(text_columns=(1, 3)))
         elements.append(keywords_table)
 
     # Category distribution pie chart below the table
@@ -1086,9 +1256,8 @@ def create_keywords_section(data: dict, styles) -> list:
         elements.append(Spacer(1, 25))
         elements.append(Paragraph("Category Distribution", styles['PinMeToH2']))
         elements.append(Spacer(1, 10))
-        # Full-width pie chart now that it's not side-by-side
-        pie_chart = create_pie_chart(categories, width=350, height=180)
-        elements.append(pie_chart)
+        # Nominal categories: one hue for every bar, identity from the labels.
+        elements.append(create_category_bars(categories, width=495))
 
     elements.append(PageBreak())
     return elements
@@ -1148,8 +1317,9 @@ def create_reviews_section(data: dict, styles) -> list:
             {'label': 'Neutral', 'value': sentiment.get('neutral', 0)},
             {'label': 'Negative', 'value': sentiment.get('negative', 0)},
         ]
-        chart = create_pie_chart(sentiment_data)
-        elements.append(chart)
+        # Sentiment is polarity, so here the colour genuinely means state.
+        elements.append(create_category_bars(sentiment_data, width=495,
+                                             palette=SENTIMENT_COLORS))
 
     elements.append(PageBreak())
     return elements
