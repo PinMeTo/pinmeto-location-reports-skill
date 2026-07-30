@@ -1,6 +1,7 @@
 ---
 name: pinmeto-location-reports
 description: This skill should be used when the user asks to "create a quarterly report", "generate a Q4 report", "build a monthly location report", "make an annual report", "H1 report", "board presentation from our location data", or otherwise requests a PDF or PowerPoint performance report from PinMeTo location analytics. Covers Google Business Profile, Facebook, and Apple Maps metrics, keyword analysis, and review sentiment for multi-location brands. Requires the PinMeTo Location MCP server (>= 4.0.0) to be connected.
+version: 1.1.0
 license: Proprietary - (c) PinMeTo AB. See LICENSE.
 ---
 

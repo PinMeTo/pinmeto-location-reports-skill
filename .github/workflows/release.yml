@@ -50,8 +50,21 @@ jobs:
             Or manually download the `.skill` file below and copy it to `~/.claude/skills/`
 
             ### Requirements
-            - Claude Desktop
-            - PinMeTo MCP Server configured
+            - Claude Desktop, Claude Code, or Claude.ai
+            - [PinMeTo Location MCP](https://github.com/PinMeTo/pinmeto-location-mcp) **4.0.0 or later**, connected to your PinMeTo account
+
+            Earlier major versions of the MCP server use different tool names, parameters, and
+            response shapes. This skill's calls will fail or return incorrect data against them.
+            To verify a connected server, run the parity check from the skill's `scripts/`
+            directory (no credentials required):
+
+            ```bash
+            node scripts/check_mcp_parity.js
+            ```
+
+            ### Changes
+
+            See [CHANGELOG.md](https://github.com/PinMeTo/pinmeto-location-reports-skill/blob/main/CHANGELOG.md).
           draft: false
           prerelease: false
 

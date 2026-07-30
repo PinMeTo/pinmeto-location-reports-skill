@@ -5,6 +5,8 @@
 
 Generate professional, board-ready reports from your PinMeTo location analytics data using Claude Desktop, Claude Code, or Claude.ai.
 
+See [CHANGELOG.md](CHANGELOG.md) for what changed in the current release.
+
 ## What This Skill Does
 
 This skill transforms your PinMeTo multi-location analytics data into polished PDF and PowerPoint reports. Perfect for:
@@ -53,6 +55,15 @@ Before installing this skill, you need the [PinMeTo MCP Server](https://github.c
 Earlier major versions used different tool names, parameters, and response shapes. This skill's calls will fail or return incorrect data against them.
 
 See the [PinMeTo MCP Server documentation](https://github.com/PinMeTo/pinmeto-location-mcp#installation) for installation instructions.
+
+To confirm your MCP server exposes what this skill expects, run the bundled parity check from
+the skill's `scripts/` directory. It needs no credentials and exits non-zero if the tool surface
+has drifted:
+
+```bash
+# from a clone of this repository
+cd pinmeto-location-reports && node scripts/check_mcp_parity.js
+```
 
 ## Installation
 

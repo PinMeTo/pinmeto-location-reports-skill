@@ -4,6 +4,30 @@
 
 This repository uses GitHub Actions to automatically create releases with the packaged `.skill` file attached.
 
+### 0. Pre-release checks
+
+Run these before tagging. The tag is what publishes, so a broken tag means a broken release:
+
+```bash
+cd pinmeto-location-reports
+
+npm test                 # v4 response-shape parser tests
+npm run check-mcp        # tool-surface parity against a connected MCP server
+
+# Both sample files must validate, and both generators must produce output
+python scripts/validate_report_data.py test_data.json
+python scripts/generate_pdf.py  --data test_data.json --output /tmp/check.pdf  --period quarterly
+python scripts/generate_pptx.py --data test_data.json --output /tmp/check.pptx --period quarterly
+```
+
+Then confirm the version is consistent in all three places:
+
+| File | Field |
+|------|-------|
+| `CHANGELOG.md` | the new `## [X.Y.Z]` heading and its compare link at the bottom |
+| `pinmeto-location-reports/package.json` | `version` |
+| `pinmeto-location-reports/SKILL.md` | `version` in the frontmatter |
+
 ### 1. Update Version
 
 Edit `CHANGELOG.md` to document your changes:
