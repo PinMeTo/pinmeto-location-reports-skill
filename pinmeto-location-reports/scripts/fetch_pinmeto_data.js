@@ -89,10 +89,22 @@ function validateCredentials() {
  * installed desktop extension.
  */
 function resolveServerPath(explicitPath) {
-  const candidates = [];
+  // An explicit path that does not exist is a hard error. Falling back to
+  // discovery could silently connect to a different (possibly older) server
+  // than the one the caller named.
+  for (const [source, value] of [
+    ['--server', explicitPath],
+    ['PINMETO_MCP_PATH', process.env.PINMETO_MCP_PATH]
+  ]) {
+    if (!value) continue;
+    if (!fs.existsSync(value)) {
+      console.error(`${source} points to a file that does not exist: ${value}`);
+      process.exit(1);
+    }
+    return value;
+  }
 
-  if (explicitPath) candidates.push(explicitPath);
-  if (process.env.PINMETO_MCP_PATH) candidates.push(process.env.PINMETO_MCP_PATH);
+  const candidates = [];
 
   candidates.push(
     path.join(
@@ -248,15 +260,25 @@ class MCPClient {
     const request = { jsonrpc: '2.0', id, method, params };
 
     return new Promise((resolve, reject) => {
-      this.pendingRequests.set(id, { resolve, reject });
-      this.serverProcess.stdin.write(JSON.stringify(request) + '\n');
-
-      setTimeout(() => {
-        if (this.pendingRequests.has(id)) {
-          this.pendingRequests.delete(id);
-          reject(new Error(`Request timeout: ${method}`));
-        }
+      // Clear the timer on settle, otherwise a pending 60s timer keeps the event
+      // loop alive long after the work is done and the script appears to hang.
+      const timer = setTimeout(() => {
+        this.pendingRequests.delete(id);
+        reject(new Error(`Request timeout: ${method}`));
       }, 60000);
+
+      this.pendingRequests.set(id, {
+        resolve: value => {
+          clearTimeout(timer);
+          resolve(value);
+        },
+        reject: error => {
+          clearTimeout(timer);
+          reject(error);
+        }
+      });
+
+      this.serverProcess.stdin.write(JSON.stringify(request) + '\n');
     });
   }
 

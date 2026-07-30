@@ -16,8 +16,9 @@
  *
  * Exit codes:
  *   0 - the server matches what the skill expects
- *   1 - drift detected (missing tools, renamed or removed parameters)
- *   2 - could not reach the server
+ *   1 - drift detected (missing tools, renamed or removed parameters), or a
+ *       --server / PINMETO_MCP_PATH value that does not exist
+ *   2 - the server was found but could not be reached or did not respond
  *
  * Credentials are NOT required: tools/list works before any API call.
  */
@@ -149,15 +150,21 @@ async function listTools(serverPath) {
       });
     };
 
+    // The timer is cleared on both settle paths: a live timer would keep the
+    // event loop alive for its full duration after the check has finished.
+    let timer;
+
     const fail = err => {
       if (settled) return;
       settled = true;
+      clearTimeout(timer);
       child.kill();
       reject(err);
     };
 
+    timer = setTimeout(() => fail(new Error('Timed out waiting for the MCP server')), 30000);
+
     child.on('error', fail);
-    setTimeout(() => fail(new Error('Timed out waiting for the MCP server')), 30000);
 
     (async () => {
       const init = await request('initialize', {
@@ -170,6 +177,7 @@ async function listTools(serverPath) {
       );
       const tools = await request('tools/list');
       settled = true;
+      clearTimeout(timer);
       child.kill();
       resolve({ serverInfo: init && init.serverInfo, tools: (tools && tools.tools) || [] });
     })().catch(fail);
