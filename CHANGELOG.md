@@ -44,6 +44,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   that do not exist. Real keys are `BUSINESS_IMPRESSIONS_*`, `WEBSITE_CLICKS`,
   `BUSINESS_DIRECTION_REQUESTS`, `CALL_CLICKS` for Google and lower_snake `page_*` for
   Facebook.
+- Platform metric tables now use thousands separators. A table read `2400000` on the same page
+  as a chart labelled `780,000` and a KPI card reading `2.4M`.
+- Fixed wrapped text overlapping itself in PDF output. Six paragraph styles set `fontSize` but
+  no `leading`, so they inherited ReportLab's default of 12; a wrapped 28pt cover title
+  collided with the line beneath it. Same class of overlap as 1.0.1, which only reached the
+  styles that already had `leading`.
+- `appendix.reportingPeriod.quarter` renamed to `period`, with `quarter` still accepted as a
+  legacy alias. The rendered label is now "Period:" for every report type, instead of
+  "Quarter: Full Year 2025" on yearly reports.
 
 ### Added
 
