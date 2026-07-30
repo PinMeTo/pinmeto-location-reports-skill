@@ -526,7 +526,7 @@ async function fetchPinMeToData(year, serverPath) {
     appendix: {
       dataSources: [],
       reportingPeriod: {
-        quarter: `${year}`,
+        period: `Full Year ${year}`,
         dateRange: `January 1, ${year} - December 31, ${year}`,
         dataFreshness: '',
         lagNote: ''

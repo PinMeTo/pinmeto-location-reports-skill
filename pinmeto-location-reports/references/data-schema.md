@@ -208,7 +208,7 @@ Data transparency and methodology documentation.
     "Apple Maps Connect via PinMeTo API"
   ],
   "reportingPeriod": {
-    "quarter": "Q4 2025",
+    "period": "Q4 2025",
     "dateRange": "October 1, 2025 - December 31, 2025",
     "dataFreshness": "January 9, 2026",
     "lagNote": "Google data has approximately 10-day reporting lag. Data for late December may be incomplete."
@@ -231,9 +231,14 @@ Data transparency and methodology documentation.
 
 **Fields:**
 - `dataSources`: List of data sources actually used. Omit platforms that returned no data.
-- `reportingPeriod`: Quarter (or period label), date range, data freshness date, and lag notes
+- `reportingPeriod`: Period label, date range, data freshness date, and lag notes
 - `calculationNotes`: Methodology explanations for metrics and comparisons
 - `locationCoverage`: Total locations, geographic scope, and data availability
+
+`reportingPeriod.period` holds the period label for **any** report type ("Q4 2025",
+"October 2025", "H2 2025", "Full Year 2025"). The generators also accept the legacy key
+`quarter`, but it is a misnomer outside quarterly reports and renders the same "Period:" line,
+so prefer `period` in new data.
 
 Populate `lagNote` from the API's own `warning` field when `warningCode` is
 `INCOMPLETE_DATA`, rather than restating a generic lag rule.

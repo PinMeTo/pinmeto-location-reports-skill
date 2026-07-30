@@ -311,6 +311,31 @@ def format_number(value):
         return f"{value/1_000:.1f}K"
     return str(value)
 
+
+def format_metric_value(value):
+    """Format a metric value for display in a table.
+
+    Applies thousands separators so metric tables match the keyword table, the
+    chart value labels, and the KPI cards. Without this, a table reads
+    '2400000' on the same slide as a chart labelled '780,000'.
+
+    Strings pass through untouched: they are already formatted upstream (for
+    example the '2.4M' style from format_number, or 'N/A').
+    """
+    if isinstance(value, bool) or value is None:
+        return str(value) if value is not None else ""
+    if isinstance(value, str):
+        return value
+    if isinstance(value, int):
+        return f"{value:,}"
+    if isinstance(value, float):
+        # Keep a decimal only when it carries information, so ratings stay 4.3
+        # while whole counts do not gain a spurious '.0'.
+        if value.is_integer():
+            return f"{int(value):,}"
+        return f"{value:,.1f}"
+    return str(value)
+
 def get_previous_period(period, report_type=None):
     """Derive previous period from current period string.
 
@@ -658,14 +683,14 @@ def create_metrics_slide(prs, title, metrics_data, period_info):
                 # Yearly: 3 columns - for yearly, periodChange IS the YoY change
                 row_data = [
                     metric.get("name", ""),
-                    str(metric.get("value", "")),
+                    format_metric_value(metric.get("value", "")),
                     metric.get("yearChange") or metric.get("periodChange", "N/A")
                 ]
             else:
                 # Quarterly/Monthly: 4 columns
                 row_data = [
                     metric.get("name", ""),
-                    str(metric.get("value", "")),
+                    format_metric_value(metric.get("value", "")),
                     metric.get("periodChange", "N/A"),
                     metric.get("yearChange", "N/A")
                 ]
@@ -1008,11 +1033,16 @@ def create_appendix_slide(prs, appendix_data):
                      font_size=11, font_name=Brand.HEADING_FONT, color=Brand.BLUE_MARINE, bold=True)
         left_y += 0.3
 
-        for key in ["quarter", "dateRange", "dataFreshness"]:
-            value = reporting_period.get(key)
+        # 'period' is the current key; 'quarter' is the legacy alias and is wrong
+        # for monthly, half-yearly, and yearly reports.
+        rows = [
+            ("Period", reporting_period.get("period") or reporting_period.get("quarter")),
+            ("Date Range", reporting_period.get("dateRange")),
+            ("Data Freshness", reporting_period.get("dataFreshness")),
+        ]
+        for label, value in rows:
             if value:
-                label = key.replace("dateRange", "Date Range").replace("dataFreshness", "Data Freshness")
-                add_text_box(slide, f"{label.title()}: {value}", Inches(0.5), Inches(left_y),
+                add_text_box(slide, f"{label}: {value}", Inches(0.5), Inches(left_y),
                              Inches(4.5), Inches(0.18), font_size=9, color=Brand.MID_GREY)
                 left_y += 0.2
 

@@ -73,6 +73,31 @@ from reportlab.graphics.charts.piecharts import Pie
 # =============================================================================
 # Helper Functions
 # =============================================================================
+def format_metric_value(value):
+    """Format a metric value for display in a table.
+
+    Applies thousands separators so metric tables match the keyword table, the
+    chart value labels, and the KPI cards. Without this, a table reads
+    '2400000' on the same page as a chart labelled '780,000'.
+
+    Strings pass through untouched: they are already formatted upstream (for
+    example the '2.4M' style used on KPI cards, or 'N/A').
+    """
+    if isinstance(value, bool) or value is None:
+        return str(value) if value is not None else ''
+    if isinstance(value, str):
+        return value
+    if isinstance(value, int):
+        return f'{value:,}'
+    if isinstance(value, float):
+        # Keep a decimal only when it carries information, so ratings stay 4.3
+        # while whole counts do not gain a spurious '.0'.
+        if value.is_integer():
+            return f'{int(value):,}'
+        return f'{value:,.1f}'
+    return str(value)
+
+
 def get_previous_period(period, report_type=None):
     """Derive previous period from current period string.
 
@@ -187,7 +212,7 @@ def get_pinmeto_styles():
         name='PinMeToTitle',
         fontName='Helvetica-Bold',
         fontSize=28,
-        textColor=PINMETO_BLUE_MARINE,
+        leading=34,        textColor=PINMETO_BLUE_MARINE,
         alignment=TA_LEFT,
         spaceAfter=20,
     ))
@@ -197,7 +222,7 @@ def get_pinmeto_styles():
         name='PinMeToH1',
         fontName='Helvetica-Bold',
         fontSize=18,
-        textColor=PINMETO_BLUE,
+        leading=22,        textColor=PINMETO_BLUE,
         spaceBefore=20,
         spaceAfter=12,
     ))
@@ -207,7 +232,7 @@ def get_pinmeto_styles():
         name='PinMeToH2',
         fontName='Helvetica-Bold',
         fontSize=14,
-        textColor=PINMETO_BLUE_MARINE,
+        leading=18,        textColor=PINMETO_BLUE_MARINE,
         spaceBefore=16,
         spaceAfter=8,
     ))
@@ -228,7 +253,7 @@ def get_pinmeto_styles():
         name='PinMeToKPI',
         fontName='Helvetica-Bold',
         fontSize=24,
-        textColor=PINMETO_BLUE,
+        leading=28,        textColor=PINMETO_BLUE,
         alignment=TA_CENTER,
     ))
 
@@ -237,7 +262,7 @@ def get_pinmeto_styles():
         name='PinMeToKPILabel',
         fontName='Helvetica',
         fontSize=9,
-        textColor=PINMETO_MID_GREY,
+        leading=11,        textColor=PINMETO_MID_GREY,
         alignment=TA_CENTER,
     ))
 
@@ -268,7 +293,7 @@ def get_pinmeto_styles():
         name='PinMeToAppendixH2',
         fontName='Helvetica-Bold',
         fontSize=11,
-        textColor=PINMETO_BLUE,
+        leading=14,        textColor=PINMETO_BLUE,
         spaceBefore=12,
         spaceAfter=6,
     ))
@@ -955,7 +980,7 @@ def create_metrics_section(data: dict, platform: str, styles, period_info: dict 
             for metric in metrics:
                 table_data.append([
                     metric.get('name', ''),
-                    str(metric.get('value', '')),
+                    format_metric_value(metric.get('value', '')),
                     metric.get('yearChange', '') or metric.get('periodChange', '') or metric.get('year_change', 'N/A')
                 ])
             table = Table(table_data, colWidths=[180, 120, 190])
@@ -970,7 +995,7 @@ def create_metrics_section(data: dict, platform: str, styles, period_info: dict 
             for metric in metrics:
                 table_data.append([
                     metric.get('name', ''),
-                    str(metric.get('value', '')),
+                    format_metric_value(metric.get('value', '')),
                     metric.get('periodChange', '') or metric.get('period_change', 'N/A'),
                     metric.get('yearChange', '') or metric.get('year_change', 'N/A')
                 ])
@@ -1184,13 +1209,15 @@ def create_appendix(data: dict, styles) -> list:
     reporting_period = appendix_data.get('reportingPeriod', {})
     if reporting_period:
         elements.append(Paragraph("Reporting Period", styles['PinMeToAppendixH2']))
-        quarter = reporting_period.get('quarter', '')
+        # 'period' is the current key; 'quarter' is the legacy alias and is wrong
+        # for monthly, half-yearly, and yearly reports.
+        period_label = reporting_period.get('period', '') or reporting_period.get('quarter', '')
         date_range = reporting_period.get('dateRange', '')
         data_freshness = reporting_period.get('dataFreshness', '')
         lag_note = reporting_period.get('lagNote', '')
 
-        if quarter:
-            elements.append(Paragraph(f"<b>Quarter:</b> {quarter}", styles['PinMeToAppendixBody']))
+        if period_label:
+            elements.append(Paragraph(f"<b>Period:</b> {period_label}", styles['PinMeToAppendixBody']))
         if date_range:
             elements.append(Paragraph(f"<b>Date Range:</b> {date_range}", styles['PinMeToAppendixBody']))
         if data_freshness:

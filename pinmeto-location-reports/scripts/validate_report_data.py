@@ -99,8 +99,11 @@ def validate_appendix(data: dict) -> list[str]:
     if not reporting_period:
         errors.append("appendix.reportingPeriod is missing")
     else:
-        if not reporting_period.get('quarter'):
-            errors.append("appendix.reportingPeriod.quarter is missing")
+        # 'quarter' is the legacy alias for 'period'. Accept either: the field is
+        # required for every report type, and 'quarter' is a misnomer for
+        # monthly, half-yearly, and yearly reports.
+        if not (reporting_period.get('period') or reporting_period.get('quarter')):
+            errors.append("appendix.reportingPeriod.period is missing")
         if not reporting_period.get('dateRange'):
             errors.append("appendix.reportingPeriod.dateRange is missing")
 
