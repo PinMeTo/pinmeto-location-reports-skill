@@ -1,20 +1,32 @@
 {
   "name": "PinMeTo Skills",
   "description": "Official PinMeTo Claude Code skills for location analytics and reporting",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "skills": [
     {
       "id": "pinmeto-location-reports",
       "name": "PinMeTo Location Reports",
       "description": "Generate professional location analytics reports in PDF and PowerPoint format using data from PinMeTo's multi-location brand analytics platform",
-      "version": "1.0.0",
+      "version": "1.1.0",
       "author": "PinMeTo",
       "repository": "https://github.com/PinMeTo/pinmeto-location-reports-skill",
       "file": "skills/pinmeto-location-reports.skill",
-      "tags": ["reporting", "analytics", "pdf", "powerpoint", "location"],
-      "requiresMcp": ["pinmeto"],
+      "tags": [
+        "reporting",
+        "analytics",
+        "pdf",
+        "powerpoint",
+        "location"
+      ],
+      "requiresMcp": [
+        "pinmeto"
+      ],
       "changelog": {
-        "1.0.0": "Initial release with PDF and PowerPoint report generation"
+        "1.0.0": "Initial release with PDF and PowerPoint report generation",
+        "1.1.0": "Compatibility with PinMeTo Location MCP 4.0.0 (requires 4.0.0 or later); redesigned stat tiles, tables and charts; star ratings; validated colourblind-safe palette"
+      },
+      "requiresMcpVersion": {
+        "pinmeto": ">=4.0.0"
       }
     }
   ]

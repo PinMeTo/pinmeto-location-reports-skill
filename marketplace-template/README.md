@@ -12,10 +12,11 @@ Generate professional location analytics reports in PDF and PowerPoint format.
 - PDF report generation with ReportLab
 - PowerPoint presentations with python-pptx
 - Real-time data fetching from PinMeTo MCP server
-- Quarterly, monthly, and yearly report periods
-- Professional branding and layouts
+- Monthly, quarterly, half-yearly, and yearly report periods
+- Professional branding, validated colourblind-safe chart palette
 
-**Version:** 1.0.0
+**Version:** 1.1.0
+**Requires:** [PinMeTo Location MCP](https://github.com/PinMeTo/pinmeto-location-mcp) 4.0.0 or later
 **Repository:** [pinmeto-location-reports-skill](https://github.com/PinMeTo/pinmeto-location-reports-skill)
 
 ## Installation
