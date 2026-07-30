@@ -1,18 +1,32 @@
 {
   "name": "pinmeto-location-reports",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Generate executive-ready location analytics reports (PDF & PowerPoint) from your PinMeTo data using Claude Code. Perfect for board meetings and business reviews.",
-  "main": "index.js",
+  "main": "scripts/fetch_pinmeto_data.js",
   "scripts": {
-    "test": "node --test tests/parse_shapes.test.js"
+    "test": "node --test tests/parse_shapes.test.js",
+    "check-mcp": "node scripts/check_mcp_parity.js"
   },
-  "keywords": [],
-  "author": "",
+  "keywords": [
+    "pinmeto",
+    "claude-skill",
+    "location-analytics",
+    "reporting",
+    "mcp"
+  ],
+  "author": "PinMeTo AB",
   "license": "UNLICENSED",
+  "private": true,
   "type": "commonjs",
-  "dependencies": {
-    "chart.js": "^4.5.1",
-    "chartjs-node-canvas": "^5.0.0",
-    "pptxgenjs": "^4.0.1"
+  "engines": {
+    "node": ">=18"
+  },
+  "peerDependencies": {
+    "@pinmeto/pinmeto-location-mcp": ">=4.0.0"
+  },
+  "peerDependenciesMeta": {
+    "@pinmeto/pinmeto-location-mcp": {
+      "optional": true
+    }
   }
 }

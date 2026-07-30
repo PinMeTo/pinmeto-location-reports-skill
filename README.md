@@ -48,7 +48,9 @@ Simply ask Claude to create a report. Here are some examples:
 
 ## Prerequisites
 
-Before installing this skill, you need the [PinMeTo MCP Server](https://github.com/PinMeTo/pinmeto-location-mcp) connected to your PinMeTo account. The MCP server provides access to your location analytics data that this skill uses to generate reports.
+Before installing this skill, you need the [PinMeTo MCP Server](https://github.com/PinMeTo/pinmeto-location-mcp) **version 4.0.0 or later** connected to your PinMeTo account. The MCP server provides access to your location analytics data that this skill uses to generate reports.
+
+Earlier major versions used different tool names, parameters, and response shapes. This skill's calls will fail or return incorrect data against them.
 
 See the [PinMeTo MCP Server documentation](https://github.com/PinMeTo/pinmeto-location-mcp#installation) for installation instructions.
 
@@ -110,11 +112,11 @@ This helps Claude recognize that you want to use this specific skill for your re
 **For Claude Desktop & Claude.ai:**
 - Claude Desktop or Claude.ai with Pro, Team, or Enterprise plan
 - Code execution capability enabled
-- [PinMeTo MCP Server](https://github.com/PinMeTo/pinmeto-location-mcp) connected to your PinMeTo account
+- [PinMeTo MCP Server](https://github.com/PinMeTo/pinmeto-location-mcp) >= 4.0.0 connected to your PinMeTo account
 
 **For Claude Code:**
 - Claude Code CLI (latest version)
-- [PinMeTo MCP Server](https://github.com/PinMeTo/pinmeto-location-mcp) connected to your PinMeTo account
+- [PinMeTo MCP Server](https://github.com/PinMeTo/pinmeto-location-mcp) >= 4.0.0 connected to your PinMeTo account
 
 ## Output Formats
 

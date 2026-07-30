@@ -1,35 +1,43 @@
 ---
 name: pinmeto-location-reports
-description: "Generate PDF and PowerPoint reports from PinMeTo location analytics. Triggers: quarterly report, Q1 report, Q2 report, Q3 report, Q4 report, monthly report, annual report, yearly report, H1 report, H2 report, location report, location analytics, PinMeTo, Google Business, create report, generate report, performance report, analytics report, executive summary, board presentation, multi-location brands, Facebook metrics, Apple Maps, keyword analysis, review analysis."
+description: This skill should be used when the user asks to "create a quarterly report", "generate a Q4 report", "build a monthly location report", "make an annual report", "H1 report", "board presentation from our location data", or otherwise requests a PDF or PowerPoint performance report from PinMeTo location analytics. Covers Google Business Profile, Facebook, and Apple Maps metrics, keyword analysis, and review sentiment for multi-location brands. Requires the PinMeTo Location MCP server (>= 4.0.0) to be connected.
+license: Proprietary - (c) PinMeTo AB. See LICENSE.
 ---
 
 # PinMeTo Location Analytics Reports
 
-Generate professional, board-ready performance reports for enterprise multi-location brands using PinMeTo's analytics data.
+Generate professional, board-ready performance reports for enterprise multi-location brands
+using PinMeTo's analytics data.
+
+## Requirements
+
+Requires **PinMeTo Location MCP >= 4.0.0** (12 tools). Earlier majors used different tool
+names, parameters, and response shapes, and this skill's calls will fail or return wrong data
+against them.
+
+Confirm the server is connected before starting. To verify the tool surface matches what this
+skill expects:
+```bash
+node scripts/check_mcp_parity.js
+```
 
 ## Quick Start
 
-1. Confirm PinMeTo MCP server is connected
-2. Parse user request for period type and date range
-3. **Calculate `from` and `to` dates** (see Date Range Calculation below)
-4. Fetch data using MCP tools - **ALWAYS include `from` and `to` parameters**
+1. Confirm the PinMeTo MCP server is connected
+2. Parse the user request for period type and date range
+3. Calculate `from` and `to` dates (see [Date Range Calculation](#date-range-calculation))
+4. Fetch data using the MCP tools (see [MCP Call Rules](#mcp-call-rules))
 5. Generate PDF and/or PPTX output with PinMeTo branding
 
 ---
 
-## ⚠️ CRITICAL: Required MCP Parameters
+## MCP Call Rules
 
-**ALL PinMeTo MCP tools require `from` and `to` date parameters. The server will reject calls without them.**
+Read [references/workflow-details.md](references/workflow-details.md) for the full parameter
+contracts. These are the rules that break reports most often.
 
-Every MCP tool call MUST include:
-```json
-{
-  "from": "YYYY-MM-DD",
-  "to": "YYYY-MM-DD"
-}
-```
+### Every insights call needs from, to, and a comparison
 
-**Example - Q4 2025 report:**
 ```json
 pinmeto_get_google_insights({
   "from": "2025-10-01",
@@ -37,24 +45,36 @@ pinmeto_get_google_insights({
   "aggregation": "quarterly",
   "compare_with": "prior_year"
 })
-
-pinmeto_get_google_ratings({
-  "from": "2025-10-01",
-  "to": "2025-12-31"
-})
-// Ratings tools accept no aggregation and no compare_with - both are silently dropped
-
-pinmeto_get_facebook_insights({
-  "from": "2025-10-01",
-  "to": "2025-12-31",
-  "aggregation": "quarterly",
-  "compare_with": "prior_year"
-})
 ```
+
+`from` and `to` are required on every data tool. Both are strings; insights, ratings, reviews,
+and review-insights tools take `YYYY-MM-DD`, **keywords take `YYYY-MM`**.
+
+### Exact spellings that fail silently or loudly
+
+| Correct | Wrong | Consequence if wrong |
+|---------|-------|---------------------|
+| `storeId` | `store_id` | **Silently returns all locations.** A single-store report gets brand-wide data |
+| `half-yearly` | `half_yearly` | Call fails with `-32602` |
+| `compare_with` | `comparison_type` | Comparison silently dropped, all changes read "N/A" |
+| `YYYY-MM` for keywords | `YYYY-MM-DD` | Call fails validation |
+
+Unknown parameter **names** are silently stripped; invalid **values** for a real parameter
+fail loudly. The silent case is the dangerous one.
+
+### Parameters that do not exist
+
+- **`aggregation` and `compare_with` on ratings tools.** Ratings take only `from`, `to`,
+  `storeId`, `forceRefresh`. For a rating delta, call once per period and subtract.
+- **`limit` on the keywords tool.** It returns the full set; take the top N in the skill.
+- **`filters` / `status` on `pinmeto_get_locations`.** Use `permanentlyClosed`, `type`,
+  `city`, `country`.
+- **`city` / `country` / `region` as location `fields`.** Geography is inside `address`.
 
 ### Default Comparison Period
 
-**Default to Year-over-Year (YoY) comparisons unless the user specifically requests otherwise.**
+Default to Year-over-Year unless the user asks otherwise. YoY accounts for seasonality, which
+matters for retail and service brands.
 
 | User Request | Use `compare_with` |
 |--------------|-------------------|
@@ -63,12 +83,17 @@ pinmeto_get_facebook_insights({
 | "Q4 2025 vs Q3 2025" or "QoQ comparison" | `"prior_period"` (QoQ) |
 | "Compare to last month" or "MoM" | `"prior_period"` |
 
-YoY comparisons are more meaningful for business reporting as they account for seasonality.
+Populating both `periodChange` and `yearChange` requires two insights calls, one per
+comparison type. With a single YoY call, set `periodChange` to "N/A" rather than inventing it.
 
-**Before EVERY MCP tool call, verify:**
-- [ ] `from` parameter is set to start date (e.g., "2025-10-01")
-- [ ] `to` parameter is set to end date (e.g., "2025-12-31")
-- [ ] Both are strings in "YYYY-MM-DD" format
+### Read the response, do not assume it
+
+- `insights` is an array **keyed by metric name**. Comparison fields (`priorValue`, `delta`,
+  `deltaPercent`) are **flat**, not nested under `comparison`.
+- `deltaPercent` is `null` when the baseline is 0. Render "N/A".
+- `warningCode: "INCOMPLETE_DATA"` means the range hit Google's reporting lag. Surface the
+  `warning` text in the appendix rather than reimplementing the lag rule.
+- Only retry when `retryable` is `true`.
 
 ---
 
@@ -85,365 +110,155 @@ Parse natural language to determine report type:
 
 ### Date Range Calculation
 
-Calculate `from` and `to` dates based on the period type. **Use these as the `from` and `to` parameters in ALL MCP calls.**
+Calculate `from` and `to` once, then use them for every MCP call in the report.
 
 ```python
-# Monthly: First to last day of month
-# October 2024:
-from = "2024-10-01"
-to = "2024-10-31"
+# Monthly: first to last day of month. October 2024:
+from = "2024-10-01";  to = "2024-10-31"
 
-# Quarterly: Q1=Jan-Mar, Q2=Apr-Jun, Q3=Jul-Sep, Q4=Oct-Dec
-# Q4 2025:
-from = "2025-10-01"
-to = "2025-12-31"
+# Quarterly: Q1=Jan-Mar, Q2=Apr-Jun, Q3=Jul-Sep, Q4=Oct-Dec. Q4 2025:
+from = "2025-10-01";  to = "2025-12-31"
 
-# Half-Yearly: H1=Jan-Jun, H2=Jul-Dec
-# H2 2025:
-from = "2025-07-01"
-to = "2025-12-31"
+# Half-Yearly: H1=Jan-Jun, H2=Jul-Dec. H2 2025:
+from = "2025-07-01";  to = "2025-12-31"
 
-# Yearly: Full calendar year
-# 2025:
-from = "2025-01-01"
-to = "2025-12-31"
+# Yearly: full calendar year. 2025:
+from = "2025-01-01";  to = "2025-12-31"
+
+# Keywords only: same range at month precision. Q4 2025:
+from = "2025-10";     to = "2025-12"
 ```
-
-**Store these dates at the start and use them for EVERY MCP tool call.**
 
 ## Report Generation Workflow
 
 ### Step 1: Validate Request
 
-Check before proceeding:
-- [ ] Date range is valid (end date <= today - 10 days for Google data)
 - [ ] Location scope is clear (all locations vs specific store IDs)
 - [ ] Output format confirmed (PDF, PPTX, or both)
+- [ ] End date is not inside Google's ~10-day reporting lag
 
-**Google Data Lag Warning:** Google metrics have ~10-day reporting delay. If user requests data from the last 10 days, warn them and suggest adjusting the end date.
+If the requested period ends within the last 10 days, warn the user that Google metrics may be
+incomplete and suggest an earlier end date. The API also flags this itself with
+`warningCode: "INCOMPLETE_DATA"`.
+
+To report on a specific store the user named loosely ("Store #47", "the Stockholm one"),
+resolve it to a real `storeId` with `pinmeto_search_locations` first.
 
 ### Steps 2-4: Fetch Data
 
-See [references/workflow-details.md](references/workflow-details.md) for detailed MCP tool calls:
-- Location data: `pinmeto_get_locations`, `pinmeto_get_location`
-- Google metrics: `pinmeto_get_google_insights`, `pinmeto_get_google_ratings`, `pinmeto_get_google_keywords`, `pinmeto_get_google_reviews`
-- Facebook metrics: `pinmeto_get_facebook_insights`, `pinmeto_get_facebook_brandpage_insights`, `pinmeto_get_facebook_ratings`
+Follow the fetch sequence in the period-specific reference file (see
+[Reference Files](#reference-files)), which lists the calls in order with correct parameters.
+
+Available tools:
+- Locations: `pinmeto_get_locations`, `pinmeto_get_location`, `pinmeto_search_locations`
+- Google: `pinmeto_get_google_insights`, `pinmeto_get_google_ratings`,
+  `pinmeto_get_google_reviews`, `pinmeto_get_google_review_insights`,
+  `pinmeto_get_google_keywords`
+- Facebook: `pinmeto_get_facebook_insights`, `pinmeto_get_facebook_brandpage_insights`,
+  `pinmeto_get_facebook_ratings`
 - Apple Maps: `pinmeto_get_apple_insights`
 
-**CRITICAL - Required Parameters for ALL MCP Tools:**
+Prefer `pinmeto_get_google_review_insights` over pulling every review when the report needs
+sentiment: it aggregates server-side and costs far fewer tokens. Fetch raw reviews only for
+pull quotes and theme identification.
 
+For a scripted batch fetch of a full year:
+```bash
+node scripts/fetch_pinmeto_data.js --year 2025 --output report_data.json
 ```
-from: "YYYY-MM-DD"   # Start date (REQUIRED - never omit)
-to: "YYYY-MM-DD"     # End date (REQUIRED - never omit)
-```
-
-Example for Q4 2025:
-```json
-{
-  "from": "2025-10-01",
-  "to": "2025-12-31",
-  "aggregation": "quarterly",
-  "compare_with": "prior_period"
-}
-```
-
-**Key tips:**
-- Always include both `from` and `to` dates - the MCP server will reject calls with missing dates
-- Use `compare_with` (not `comparison_type`) for comparison data
-- Call insights twice: once with `compare_with: "prior_period"`, once with `compare_with: "prior_year"`
 
 ### Step 5: Process & Analyze Data
 
-1. **Calculate Changes:** For each metric, compute:
-   - Absolute change: `current - previous`
-   - Percent change: `((current - previous) / previous) * 100`
-
-2. **Classify Keywords:** Apply rules from `references/keyword-classification.md`:
-   - Branded: Contains brand name
-   - Discovery: Generic category searches
-   - Navigational: Location-intent ("near me")
-
-3. **Aggregate Multi-Location:** Sum totals, average ratings (weighted by review count)
-
-4. **Generate Insights:** Identify:
-   - Top performers (locations, keywords)
-   - Areas needing attention (declining metrics)
-   - Trends (improving/declining over time)
+1. **Calculate changes:** absolute (`current - previous`) and percent
+   (`((current - previous) / previous) * 100`). Guard against a zero baseline.
+2. **Sum the roll-ups:** Total Views and Total Actions are sums of component metrics, not API
+   fields. See [references/metrics-glossary.md](references/metrics-glossary.md).
+3. **Classify keywords** using [references/keyword-classification.md](references/keyword-classification.md).
+4. **Aggregate multi-location:** sum totals, average ratings weighted by review count,
+   excluding locations with no reviews.
+5. **Generate insights:** top performers, declining metrics, trends.
 
 ### Step 5.5: Validate Data
 
-Run validation before generating report:
 ```bash
 python scripts/validate_report_data.py report_data.json
 ```
 
-Fix any validation errors before proceeding to generation.
+Fix all validation errors before generating. The schema is documented in
+[references/data-schema.md](references/data-schema.md).
 
 ### Step 6: Generate Report
 
-Read the appropriate reference file for report structure:
-- Monthly: `references/monthly.md`
-- Quarterly: `references/quarterly.md`
-- Half-Yearly: `references/half-yearly.md`
-- Yearly: `references/yearly.md`
+Read the period-specific reference file for report structure, then run the bundled generator
+**directly from the skill directory**. Do not copy the scripts into the working directory or
+rewrite them: they encode the branding and layout, and a copy will drift.
 
-**CRITICAL: Use the bundled scripts. Do NOT create your own generation scripts.**
+```bash
+# Set once to the directory containing this SKILL.md
+SKILL_DIR="/path/to/pinmeto-location-reports"
 
-#### For PDF:
-1. Read `scripts/generate_pdf.py` from this skill
-2. Copy the script content to your working directory as `generate_pdf.py`
-3. Run: `python generate_pdf.py --data report_data.json --output report.pdf --period [period]`
+pip install reportlab python-pptx pillow matplotlib
 
-#### For PPTX:
-1. Read `scripts/generate_pptx.py` from this skill
-2. Copy the script content to your working directory as `generate_pptx.py`
-3. Install dependencies: `pip install python-pptx pillow matplotlib`
-4. Run: `python generate_pptx.py --data report_data.json --output report.pptx --period [period]`
+# PDF
+python "$SKILL_DIR/scripts/generate_pdf.py" \
+  --data report_data.json --output report.pdf --period quarterly
 
-The `[period]` parameter accepts: `monthly`, `quarterly`, `half-yearly`, or `yearly`.
+# PPTX
+python "$SKILL_DIR/scripts/generate_pptx.py" \
+  --data report_data.json --output report.pptx --period quarterly
+```
+
+`--period` accepts `monthly`, `quarterly`, `half-yearly`, or `yearly`.
 
 ### Step 7: Client Review (Human-in-the-Loop)
 
-**Before finalizing, present the draft report to the user for review.**
+Present a draft for review before finalizing.
 
-#### 7.1 Generate Draft Report
-
-Generate the report with the `--draft` flag to add a visible watermark:
+**7.1 Generate a draft** with `--draft` to add a diagonal "DRAFT - PENDING REVIEW" watermark
+to every page or slide:
 
 ```bash
-# PDF draft
-python generate_pdf.py --data report_data.json --output Brand_Q4_Report_DRAFT.pdf --period quarterly --draft
-
-# PPTX draft
-python generate_pptx.py --data report_data.json --output Brand_Q4_Report_DRAFT.pptx --period quarterly --draft
+python "$SKILL_DIR/scripts/generate_pdf.py" \
+  --data report_data.json --output Brand_Q4_Report_DRAFT.pdf --period quarterly --draft
 ```
 
-The watermark ("DRAFT - PENDING REVIEW") appears diagonally on every page/slide.
-
-#### 7.2 Present for Review
-
-Present the draft to the user with a summary of key data:
+**7.2 Present for review** with a summary of the key data:
 
 ```
 I've generated a draft Q4 2025 report with a DRAFT watermark.
 
-📄 File: Brand_Q4_2025_Report_DRAFT.pdf
+File: Brand_Q4_2025_Report_DRAFT.pdf
 
 Key data included:
-- Total Views: 125,432 (↑12% YoY)
-- Total Actions: 8,234 (↑8% YoY)
-- Average Rating: 4.6 (↑0.2)
+- Total Views: 125,432 (+12% YoY)
+- Total Actions: 8,234 (+8% YoY)
+- Average Rating: 4.6 (+0.2)
 - 12 locations analyzed
 
-Please review and let me know:
-- ✅ "Approved" - I'll generate the final version without watermark
-- 🔧 Any corrections needed - I'll fix and regenerate a new draft
+Note: Google data for the final 10 days of December may be incomplete.
+
+Reply "approved" for the final version without the watermark, or tell me what to correct.
 ```
 
-#### 7.3 Review Checklist
+State any `dataWarnings` here. A platform that returned no data looks identical to a real
+decline in the finished report.
 
-Ask the user to verify:
-1. **Executive Summary** - Is the narrative accurate and appropriate?
-2. **KPI Values** - Are all key metrics present and correct?
-3. **Charts & Graphs** - Do all visualizations render properly?
-4. **Tables** - Is data complete with no missing values?
-5. **Text Content** - Are titles, labels, and descriptions correct?
-6. **Branding** - Do logos, colors, and formatting look right?
+**7.3 Review checklist** (full version in
+[references/client-review.md](references/client-review.md)): executive summary accuracy, KPI
+values, chart rendering, table completeness, text correctness, branding.
 
-See `references/client-review.md` for the full checklist.
-
-#### 7.4 Handle Feedback
-
-- **If approved** → Regenerate without `--draft` flag, finalize report
-- **If changes needed** → Auto-fix and regenerate new draft:
-  - Text corrections → Update data JSON, regenerate with `--draft`
-  - Chart issues → Adjust chart parameters, regenerate with `--draft`
-  - Missing data → Re-fetch from MCP or flag as unavailable, regenerate
-  - Repeat review until approved
+**7.4 Handle feedback:**
+- Approved: regenerate without `--draft`
+- Changes needed: update the data JSON or chart parameters, regenerate with `--draft`, repeat
 
 ### Step 8: Quality Check & Delivery
 
-Run through `references/qa-checklist.md` before delivering the final report.
+Work through [references/qa-checklist.md](references/qa-checklist.md) before delivering.
 
-## Data Schema for Report Generation
+## Report Data Schema
 
-The PDF/PPTX generators expect data in this exact structure. **Field names must match exactly (camelCase).**
-
-### Required Top-Level Fields
-
-```json
-{
-  "companyName": "Brand Name",
-  "title": "Location Analytics Report",
-  "period": "Q4 2025",
-  "priorPeriod": "Q3 2025",
-  "dateRange": "October 1 - December 31, 2025",
-  "priorDateRange": "July 1 - September 30, 2025"
-}
-```
-
-### Executive Summary (Required)
-
-The executive summary provides a narrative overview and structured highlights:
-
-```json
-"executiveSummary": {
-  "narrative": "Q4 2025 demonstrated strong growth across key visibility metrics. Total views increased significantly driven by exceptional growth in desktop maps visibility (+43% QoQ, +712% YoY). Customer actions remained robust with direction requests up 17% quarter-over-quarter.",
-  "highlights": [
-    {
-      "title": "Outstanding Maps Growth",
-      "description": "Desktop maps impressions surged 712% year-over-year, indicating significantly improved local search visibility."
-    },
-    {
-      "title": "Strong Action Growth",
-      "description": "Website clicks increased 85% quarter-over-quarter, showing improved engagement and conversion potential."
-    }
-  ]
-}
-```
-
-**Fields:**
-- `narrative`: 2-3 sentence summary of the period's performance
-- `highlights`: Array of key achievements, each with `title` and `description`
-
-### KPIs Array
-
-Each KPI **must** have a `name` field:
-
-```json
-"kpis": [
-  {"name": "Total Views", "value": "6,685", "change": "+15% YoY"},
-  {"name": "Customer Actions", "value": "1,531", "change": "+12%"},
-  {"name": "Average Rating", "value": "3.2", "change": "No change"},
-  {"name": "Total Reviews", "value": "4", "change": "+2"}
-]
-```
-
-### Platform Metrics (google, facebook, apple)
-
-Each platform section **must** have `insights` (key findings) and `metrics`. Each metric **must** have `name`, `value`, `periodChange`, and `yearChange`:
-
-```json
-"google": {
-  "insights": [
-    "Desktop maps views drove 60% of total impressions, up from 35% last quarter",
-    "Direction requests show strong purchase intent with +17% QoQ growth",
-    "Phone calls declined 3% QoQ but remain 5% above prior year levels"
-  ],
-  "metrics": [
-    {"name": "Total Views", "value": 4200, "periodChange": "+8%", "yearChange": "+15%"},
-    {"name": "Search Impressions", "value": 831, "periodChange": "+5%", "yearChange": "+18%"},
-    {"name": "Website Clicks", "value": 189, "periodChange": "+12%", "yearChange": "+22%"}
-  ],
-  "chartData": [
-    {"label": "Oct 2025", "value": 2500, "priorValue": 2300},
-    {"label": "Nov 2025", "value": 2200, "priorValue": 2100}
-  ]
-}
-```
-
-**Key Insights Guidelines:**
-- Include 2-3 insights per platform
-- Focus on significant changes, trends, or notable patterns
-- Reference specific metrics and percentage changes
-
-### Keywords
-
-```json
-"keywords": {
-  "insights": [
-    "Branded searches account for 52% of impressions, indicating strong brand awareness",
-    "Discovery keywords grew 15% YoY, showing expanding market reach",
-    "Navigational searches suggest loyal customer base returning via direct search"
-  ],
-  "topKeywords": [
-    {"keyword": "brand name", "impressions": 1973, "category": "Branded"},
-    {"keyword": "service type", "impressions": 201, "category": "Discovery"}
-  ],
-  "categoryDistribution": [
-    {"label": "Branded", "value": 85},
-    {"label": "Discovery", "value": 12},
-    {"label": "Navigational", "value": 3}
-  ]
-}
-```
-
-### Reviews
-
-```json
-"reviews": {
-  "insights": [
-    "Customer service consistently praised with 89 positive mentions",
-    "Wait times flagged as key improvement area with 45 negative mentions",
-    "Value perception strong with 56 positive mentions on pricing"
-  ],
-  "totalReviews": 4,
-  "averageRating": 3.2,
-  "ratingChange": "No change",
-  "sentiment": {
-    "positive": 50,
-    "neutral": 25,
-    "negative": 25
-  },
-  "topThemes": [
-    {"theme": "Service quality", "mentions": 2, "sentiment": "positive"},
-    {"theme": "Wait times", "mentions": 1, "sentiment": "negative"}
-  ]
-}
-```
-
-### Recommendations
-
-```json
-"recommendations": [
-  {
-    "title": "Improve Review Response Rate",
-    "description": "Respond to all reviews within 24 hours to show customer engagement.",
-    "impact": "Expected 10-15% improvement in customer satisfaction"
-  }
-]
-```
-
-### Appendix (Required)
-
-The appendix provides data transparency and methodology documentation:
-
-```json
-"appendix": {
-  "dataSources": [
-    "Google Business Profile via PinMeTo API",
-    "Facebook Pages via PinMeTo API",
-    "Apple Maps Connect via PinMeTo API"
-  ],
-  "reportingPeriod": {
-    "quarter": "Q4 2025",
-    "dateRange": "October 1, 2025 - December 31, 2025",
-    "dataFreshness": "January 9, 2026",
-    "lagNote": "Google data has approximately 10-day reporting lag. Data for late December may be incomplete."
-  },
-  "calculationNotes": [
-    "YoY (Year-over-Year) comparisons use Q4 2024 as the baseline",
-    "QoQ (Quarter-over-Quarter) comparisons use Q3 2025 as the baseline",
-    "Percentage changes calculated as: ((current - previous) / previous) × 100",
-    "Average ratings are weighted by review count across locations",
-    "Keyword categories assigned based on brand name presence and search intent"
-  ],
-  "locationCoverage": {
-    "totalLocations": 45,
-    "geographicCoverage": "12 countries (Sweden, Finland, Norway, Denmark, Germany, Netherlands, Belgium, France, UK, Spain, Portugal, Poland)",
-    "locationsWithGoogleData": 45,
-    "locationsWithReviews": 38
-  }
-}
-```
-
-**Fields:**
-- `dataSources`: List of data sources used in the report
-- `reportingPeriod`: Quarter, date range, data freshness date, and any lag notes
-- `calculationNotes`: Methodology explanations for metrics and comparisons
-- `locationCoverage`: Total locations, geographic scope, and data availability
-
-**Critical:** If `name` field is missing from metrics, the table will show blank labels. If `periodChange`/`yearChange` are missing, columns will show "N/A".
+The generators expect an exact JSON structure with camelCase field names. Full schema,
+field sources, and common failures: [references/data-schema.md](references/data-schema.md).
 
 ## Brand Guidelines
 
@@ -458,44 +273,42 @@ The appendix provides data transparency and methodology documentation:
 | Mid Grey | `#333333` | Body text |
 
 ### Typography
-- **Headlines:** Montserrat (Bold/SemiBold) - all headers and short text
-- **Body Text:** Recursive Mono Linear - only for long text paragraphs
+- **Headlines:** Montserrat (Bold/SemiBold) for all headers and short text
+- **Body Text:** Recursive Mono Linear for long paragraphs only
 - **Fallbacks:** Arial (headlines), Georgia (body)
 
 ### Logo Usage
-- Use landscape version for report headers/footers
-- Use vertical version for cover pages
-- Logos in `assets/logos/` (SVG and JPG formats)
-- Maintain clear space around logo (minimum: logo height)
+- Landscape version for report headers/footers, vertical for cover pages
+- Logos in `assets/logos/` (SVG and JPG)
+- Maintain clear space of at least the logo height around it
 - Never stretch, recolor, or rearrange logo elements
 
 ## Reference Files
 
 | File | Purpose |
 |------|---------|
-| `references/workflow-details.md` | MCP tool calls and aggregation options |
+| `references/workflow-details.md` | MCP tool contracts, parameters, response shapes |
+| `references/data-schema.md` | Report data JSON schema and field sources |
 | `references/monthly.md` | Monthly report structure (8-15 pages) |
 | `references/quarterly.md` | Quarterly report structure (10-18 pages) |
 | `references/half-yearly.md` | Half-yearly report structure (12-20 pages) |
 | `references/yearly.md` | Yearly report structure (15-25 pages) |
-| `references/metrics-glossary.md` | Platform metrics definitions |
+| `references/metrics-glossary.md` | Metric keys and derived roll-ups |
 | `references/keyword-classification.md` | Keyword categorization rules |
+| `references/client-review.md` | Client review checklist |
 | `references/qa-checklist.md` | Quality assurance checklist |
 
 ## Output Formats
 
 ### PDF Reports
-- Multi-page document with headers/footers
-- PinMeTo logo on each page
-- Charts embedded as images
-- Tables with brand styling
+- Multi-page document with headers/footers and the PinMeTo logo on each page
+- Charts embedded as images, tables with brand styling
 - Executive summary first, details following
 
 ### PowerPoint Presentations
 - 16:9 aspect ratio (720pt x 405pt)
-- Title slide with vertical logo
-- Section dividers with brand colors
-- Chart slides with PptxGenJS
+- Title slide with vertical logo, section dividers in brand colors
+- Charts rendered as PNG images for Keynote and PowerPoint compatibility
 - Recommendations slide with action items
 
 ## Example Usage
@@ -503,7 +316,7 @@ The appendix provides data transparency and methodology documentation:
 **Monthly report:**
 > "Create a monthly report for October 2024"
 
-**Quarterly report for specific location:**
+**Quarterly report for a specific location:**
 > "Generate Q3 2024 report for Store #47"
 
 **Aggregated half-yearly:**

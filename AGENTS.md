@@ -119,6 +119,16 @@ git push                # Push to remote
 - `generate_pdf.py`: Uses ReportLab for multi-page PDFs with charts (line, bar, pie), tables, and branded styling
 - `generate_pptx.py`: Uses python-pptx + matplotlib for 16:9 presentations with image-based charts for Keynote compatibility
 
+Both are pure Python (`reportlab`, `python-pptx`, `pillow`, `matplotlib`). The skill has no
+runtime npm dependencies; the Node scripts use built-in modules only.
+
+**Data and Validation Scripts:**
+- `fetch_pinmeto_data.js`: Batch fetch a full year over stdio MCP. Resolves the server via
+  `--server`, `PINMETO_MCP_PATH`, local `node_modules`, or an installed desktop extension.
+- `check_mcp_parity.js`: Compares the connected server's tool surface against the contract the
+  skill assumes. Exits non-zero on drift.
+- `validate_report_data.py`: Validates report data JSON before generation.
+
 **Packaging:**
 To package the skill for distribution, run:
 ```bash
@@ -136,25 +146,20 @@ This creates a `.skill` file in the `dist/` directory that can be installed in C
 
 ### Data Schema
 
-Report data JSON must follow this structure (see `test_data.json` for complete example):
-```json
-{
-  "companyName": "Brand Name",
-  "title": "Location Analytics Report",
-  "period": "Q4 2024",
-  "priorPeriod": "Q4 2023",
-  "dateRange": "October 1 - December 31, 2024",
-  "priorDateRange": "October 1 - December 31, 2023",
-  "highlights": ["Key insight 1", "Key insight 2"],
-  "kpis": [{"name": "Metric", "value": "1.2M", "change": "+15%"}],
-  "google": {"metrics": [...], "chartData": [...]},
-  "facebook": {"metrics": [...], "chartData": [...]},
-  "apple": {"metrics": [...]},
-  "keywords": {"topKeywords": [...], "categoryDistribution": [...]},
-  "reviews": {"totalReviews": 500, "averageRating": 4.5, "sentiment": {...}},
-  "recommendations": [{"title": "...", "description": "...", "impact": "..."}]
-}
+The single source of truth is
+[pinmeto-location-reports/references/data-schema.md](pinmeto-location-reports/references/data-schema.md),
+with `test_data.json` as a complete worked example. Do not duplicate the schema here: it drifted
+once already and the copies disagreed.
+
+Enforce it mechanically rather than by eye:
+```bash
+python scripts/validate_report_data.py report_data.json
 ```
+
+Required top-level keys: `companyName`, `title`, `period`, `dateRange`, `executiveSummary`,
+`kpis`, `google`, `facebook`, `apple`, `keywords`, `reviews`, `recommendations`, `appendix`.
+Each platform section needs an `insights` array, and each metric needs `name`, `value`,
+`periodChange`, `yearChange`.
 
 ### Brand Guidelines
 
@@ -172,17 +177,50 @@ Report data JSON must follow this structure (see `test_data.json` for complete e
 
 ### MCP Tool Reference
 
-The skill relies on these PinMeTo MCP tools:
-- `pinmeto_get_locations` - List all locations
-- `pinmeto_get_google_insights` - Google views, searches, actions
-- `pinmeto_get_google_ratings` - Rating and review aggregates
-- `pinmeto_get_google_keywords` - Search keyword data
+**Targets PinMeTo Location MCP >= 4.0.0** (12 tools). The authoritative contract reference is
+`pinmeto-location-reports/references/workflow-details.md`. Verify a connected server with:
+
+```bash
+cd pinmeto-location-reports && npm run check-mcp
+```
+
+- `pinmeto_get_locations` - List locations (paginated, filterable)
+- `pinmeto_get_location` - Single location by `storeId`
+- `pinmeto_search_locations` - Resolve a name or partial ID to a `storeId`
+- `pinmeto_get_google_insights` - Google impressions and actions
+- `pinmeto_get_google_ratings` - Rating aggregates
 - `pinmeto_get_google_reviews` - Individual review text
-- `pinmeto_get_facebook_insights` - Facebook page metrics
+- `pinmeto_get_google_review_insights` - Sentiment and rating statistics
+- `pinmeto_get_google_keywords` - Search keyword data
+- `pinmeto_get_facebook_insights` - Facebook location metrics
+- `pinmeto_get_facebook_brandpage_insights` - Facebook brand-page metrics
+- `pinmeto_get_facebook_ratings` - Facebook rating aggregates
 - `pinmeto_get_apple_insights` - Apple Maps metrics
 
-Aggregation options: `total`, `daily`, `weekly`, `monthly`, `quarterly`, `half_yearly`, `yearly`
-Comparison types: `none`, `prior_period`, `prior_year`
+Aggregation options: `total`, `daily`, `weekly`, `monthly`, `quarterly`, `half-yearly`, `yearly`
+(**hyphen**, not underscore: `half_yearly` fails with `-32602`)
+Comparison types: `none`, `prior_period`, `prior_year` (parameter name is `compare_with`)
+
+**Contract gotchas that have bitten this skill before:**
+- `storeId` is camelCase. Unknown parameter names are silently stripped, so `store_id` returns
+  all-locations data instead of erroring.
+- Keywords take `YYYY-MM`; every other tool takes `YYYY-MM-DD`.
+- Ratings tools accept no `aggregation` and no `compare_with`.
+- The keywords tool has no `limit`; take the top N client-side.
+- `insights` is an array keyed by metric name, with flat `priorValue`/`delta`/`deltaPercent`.
+- The server does no review theme extraction, despite `analysisType: "themes"` being accepted.
+
+### Testing
+
+```bash
+cd pinmeto-location-reports
+npm test              # v4 response-shape parser tests (no dependencies)
+npm run check-mcp     # tool-surface parity against a connected server
+```
+
+`tests/fixtures/` holds v4 payloads generated by running the MCP server's own transform
+pipeline over its raw API examples. `tests/evaluations.json` is the skill evaluation spec
+(query plus expected behavior per report type), used for manual and harness-driven eval runs.
 
 ### Important Considerations
 
