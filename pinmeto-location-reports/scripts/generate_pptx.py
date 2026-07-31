@@ -28,7 +28,6 @@ from pptx.util import Inches, Pt
 from pptx.dml.color import RGBColor
 from pptx.enum.text import PP_ALIGN, MSO_ANCHOR
 from pptx.enum.shapes import MSO_SHAPE
-from pptx.oxml.ns import nsmap
 import io
 
 # Try to import matplotlib for chart generation
@@ -46,6 +45,25 @@ SCRIPT_DIR = Path(__file__).parent
 ASSETS_DIR = SCRIPT_DIR.parent / "assets"
 DEFAULT_LOGO = ASSETS_DIR / "logos" / "PinMeTo_Logo_Landscape.jpg"
 DEFAULT_LOGO_VERTICAL = ASSETS_DIR / "logos" / "Pinmeto_Logo_Vertical.jpg"
+FONTS_DIR = ASSETS_DIR / "fonts"
+
+# Point matplotlib at the bundled Montserrat TTFs so chart labels match the slide
+# typography. matplotlib maintains its own font registry, so without this the
+# charts render in DejaVu Sans next to Montserrat slide text.
+if MATPLOTLIB_AVAILABLE:
+    from matplotlib import font_manager
+
+    _faces = [
+        FONTS_DIR / "Montserrat-Regular.ttf",
+        FONTS_DIR / "Montserrat-SemiBold.ttf",
+        FONTS_DIR / "Montserrat-Bold.ttf",
+    ]
+    if all(face.exists() for face in _faces):
+        for _face in _faces:
+            font_manager.fontManager.addfont(str(_face))
+        plt.rcParams["font.family"] = "Montserrat"
+    else:
+        print(f"Warning: brand fonts missing from {FONTS_DIR}; charts use the matplotlib default.")
 
 # =============================================================================
 # PinMeTo Brand Constants
@@ -54,7 +72,7 @@ class Brand:
     # Colors (RGB tuples)
     BLUE = RGBColor(0x33, 0x99, 0xFF)
     ORANGE = RGBColor(0xFF, 0x88, 0x54)
-    BLUE_MARINE = RGBColor(0x00, 0x13, 0x34)
+    NAVY = RGBColor(0x00, 0x00, 0x50)
     LIGHT_BLUE = RGBColor(0xBB, 0xD9, 0xFA)
     GREY = RGBColor(0xF2, 0xF3, 0xF4)
     MID_GREY = RGBColor(0x33, 0x33, 0x33)
@@ -78,16 +96,24 @@ class Brand:
     STATUS_GOOD = RGBColor(0x0E, 0x7C, 0x4A)
     STATUS_BAD = RGBColor(0xCC, 0x33, 0x11)
 
-    INK = RGBColor(0x00, 0x13, 0x34)
+    INK = RGBColor(0x00, 0x00, 0x50)
     INK_MUTED = RGBColor(0x5A, 0x64, 0x72)
     HAIRLINE = RGBColor(0xDC, 0xE3, 0xEC)
     TILE_SURFACE = RGBColor(0xF5, 0xF8, 0xFC)
     TABLE_HEADER_BG = RGBColor(0xEA, 0xF2, 0xFD)
     TABLE_ZEBRA = RGBColor(0xFA, 0xFB, 0xFD)
 
-    # Font names
-    HEADING_FONT = "Arial"
-    BODY_FONT = "Arial"
+    # Font names. Montserrat is the only PinMeTo brand typeface (Graphic Manual,
+    # May 2026), and it is what the official PinMeTo decks use in every text run.
+    #
+    # Caveat: a .pptx references fonts by name, so slide text renders in
+    # Montserrat only on a machine that has it installed. python-pptx cannot
+    # embed a typeface, and PowerPoint substitutes its own default otherwise.
+    # Charts are unaffected: they are rasterised here with the bundled TTFs, so
+    # chart labels are always Montserrat regardless of the viewer's fonts. Deliver
+    # the PDF when typography has to be guaranteed.
+    HEADING_FONT = "Montserrat"
+    BODY_FONT = "Montserrat"
 
 # Slide dimensions (16:9) - python-pptx default
 SLIDE_WIDTH = Inches(10)
@@ -101,7 +127,7 @@ CHART_COLORS = {
     'prior': '#C9DCF3',       # prior-period wash (de-emphasis, not a slot)
     'light_blue': '#C9DCF3',  # retained alias
     'mid_grey': '#333333',
-    'ink': '#001334',
+    'ink': '#000050',
     'ink_muted': '#5A6472',
     'hairline': '#DCE3EC',
     'track': '#F0F3F7',
@@ -115,11 +141,21 @@ CHART_COLORS = {
 }
 
 
+# Direction glyphs for table cells, matching the drawn triangles on the stat
+# tiles so both carry a non-colour channel.
+DELTA_GLYPHS = {1: '▲', -1: '▼', 0: '–'}  # ▲ ▼ –
+_GLYPH_PREFIX_CHARS = ''.join(DELTA_GLYPHS.values()) + ' \t'
+
+
 def change_direction(change):
-    """Classify a change string as positive (1), negative (-1) or neutral (0)."""
+    """Classify a change string as positive (1), negative (-1) or neutral (0).
+
+    Tolerates an already-applied direction glyph so a decorated cell can still
+    be classified for its colour.
+    """
     if not change:
         return 0
-    text = str(change).strip()
+    text = str(change).strip().lstrip(_GLYPH_PREFIX_CHARS).strip()
     if not text or text.upper() in {'N/A', 'NA', '-', '--'}:
         return 0
     if 'no change' in text.lower():
@@ -129,6 +165,26 @@ def change_direction(change):
     if text.startswith('+'):
         return 1
     return 0
+
+
+def decorate_delta(value):
+    """Prefix a change string with its direction glyph.
+
+    Slide text references Montserrat by name rather than embedding it, so the
+    glyph resolves through the viewer's font stack. ▲/▼ are near-universal, and
+    a per-glyph substitution still reads as a triangle, so the non-colour
+    channel survives even where Montserrat itself does not.
+    """
+    if value is None:
+        return value
+    text = str(value)
+    if not text.strip():
+        return text
+    if text.strip().upper() in {'N/A', 'NA', '-', '--'}:
+        return text
+    if text.strip()[0] in DELTA_GLYPHS.values():
+        return text  # already decorated
+    return f"{DELTA_GLYPHS[change_direction(text)]} {text}"
 
 
 def status_rgb(change):
@@ -393,7 +449,6 @@ def generate_sentiment_breakdown_chart(sentiment_data):
 def add_draft_watermark(slide):
     """Add a diagonal 'DRAFT - PENDING REVIEW' watermark to a slide."""
     from pptx.oxml.ns import qn
-    from pptx.oxml import parse_xml
 
     # Add a text box for the watermark (centered on slide)
     watermark = slide.shapes.add_textbox(
@@ -401,6 +456,10 @@ def add_draft_watermark(slide):
         Inches(9), Inches(1.5)
     )
     tf = watermark.text_frame
+    # A watermark must stay on one line. At 48pt bold this string is slightly
+    # wider than the 9in box, so leaving wrap enabled risks PowerPoint breaking
+    # it across two lines; overflowing the box is the harmless outcome here.
+    tf.word_wrap = False
     p = tf.paragraphs[0]
     p.text = "DRAFT - PENDING REVIEW"
     p.font.size = Pt(48)
@@ -427,11 +486,6 @@ def add_draft_watermark(slide):
 # =============================================================================
 # Helper Functions
 # =============================================================================
-def set_shape_fill(shape, color):
-    """Set solid fill color for a shape."""
-    shape.fill.solid()
-    shape.fill.fore_color.rgb = color
-
 def add_text_box(slide, text, left, top, width, height, font_size=12,
                  font_name=Brand.BODY_FONT, color=Brand.MID_GREY, bold=False,
                  align=PP_ALIGN.LEFT, valign=MSO_ANCHOR.TOP):
@@ -539,13 +593,47 @@ def get_previous_period(period, report_type=None):
     return None
 
 
-def detect_report_type(period):
-    """Detect report type from period string.
+# Accepted spellings for an explicit report type, mapped to the canonical value.
+REPORT_TYPE_ALIASES = {
+    'monthly': 'monthly',
+    'quarterly': 'quarterly',
+    'half-yearly': 'half-yearly',
+    'half_yearly': 'half-yearly',
+    'halfyearly': 'half-yearly',
+    'yearly': 'yearly',
+    'annual': 'yearly',
+}
+
+
+def get_period_type(data):
+    """Read the caller's explicit report type from the data dict.
+
+    Accepts both spellings because the two generators historically wrote
+    different keys ('periodType' and 'period_type') and neither read them back.
+    """
+    if not isinstance(data, dict):
+        return None
+    return data.get('periodType') or data.get('period_type')
+
+
+def detect_report_type(period, period_type=None):
+    """Resolve the report type, preferring an explicit period type over inference.
+
+    An explicit `--period` is authoritative: it is what the caller asked for.
+    Inference from the free-text period label is only a fallback, and it cannot
+    recognise half-yearly on its own ('H1 2025' matched no pattern), which
+    silently downgraded every half-yearly report to the quarterly layout.
 
     Returns:
-        'yearly', 'quarterly', 'monthly', or None
+        'yearly', 'quarterly', 'half-yearly', 'monthly', or None
     """
     import re
+
+    if period_type:
+        resolved = REPORT_TYPE_ALIASES.get(str(period_type).strip().lower())
+        if resolved:
+            return resolved
+
     if not period:
         return None
 
@@ -557,6 +645,10 @@ def detect_report_type(period):
     if re.match(r'Q\d\s+\d{4}', period):
         return 'quarterly'
 
+    # Half-yearly: H1/H2 YYYY
+    if re.match(r'^H[12]\s+\d{4}', period.strip(), re.IGNORECASE):
+        return 'half-yearly'
+
     # Monthly: Month name + year
     months = ['January', 'February', 'March', 'April', 'May', 'June',
               'July', 'August', 'September', 'October', 'November', 'December']
@@ -566,12 +658,6 @@ def detect_report_type(period):
 
     return None
 
-
-# Keep old function name for backwards compatibility
-def get_previous_quarter(period):
-    """Deprecated: Use get_previous_period() instead."""
-    result = get_previous_period(period)
-    return result if result else "Prior Period"
 
 def find_logo_path(data):
     """Find logo path with fallback for different environments (e.g., Claude Desktop)."""
@@ -626,7 +712,7 @@ def create_title_slide(prs, data):
     # Main title
     title = data.get("title", "Location Analytics Report")
     add_text_box(slide, title, Inches(0.5), Inches(1.8), Inches(9), Inches(0.9),
-                 font_size=32, font_name=Brand.HEADING_FONT, color=Brand.BLUE_MARINE, bold=True)
+                 font_size=32, font_name=Brand.HEADING_FONT, color=Brand.NAVY, bold=True)
 
     # Period subtitle - tighter spacing
     period = data.get("period", "")
@@ -688,7 +774,7 @@ def create_executive_summary(prs, data):
         # Calculate narrative height dynamically (90 chars/line at 10pt in 9" width)
         narrative_height = estimate_text_height(narrative, chars_per_line=90, line_height=LINE_HEIGHT_10PT, min_height=0.3)
         add_text_box(slide, narrative, Inches(0.5), Inches(start_y), Inches(9), Inches(narrative_height),
-                     font_size=10, color=Brand.BLUE_MARINE)
+                     font_size=10, color=Brand.NAVY)
         start_y = start_y + narrative_height + 0.15  # Dynamic positioning below narrative
 
     # Highlights - with increased spacing to allow text wrapping
@@ -696,16 +782,17 @@ def create_executive_summary(prs, data):
     if highlights:
         # Dynamic label based on report type
         period = data.get("period", "")
-        report_type = detect_report_type(period)
+        report_type = detect_report_type(period, get_period_type(data))
         highlights_label = {
             'yearly': 'Year Highlights',
+            'half-yearly': 'Half-Year Highlights',
             'quarterly': 'Quarter Highlights',
             'monthly': 'Month Highlights'
         }.get(report_type, 'Key Highlights')
 
         add_text_box(slide, highlights_label, Inches(0.5), Inches(start_y),
                      Inches(4.5), Inches(0.25), font_size=12, font_name=Brand.HEADING_FONT,
-                     color=Brand.BLUE_MARINE, bold=True)
+                     color=Brand.NAVY, bold=True)
 
         for i, highlight in enumerate(highlights[:4]):
             y = start_y + 0.35 + i * INSIGHT_SPACING  # Use constant for consistent spacing
@@ -723,7 +810,7 @@ def create_executive_summary(prs, data):
     if kpis:
         add_text_box(slide, "Performance Metrics", Inches(5.5), Inches(start_y),
                      Inches(4), Inches(0.25), font_size=12, font_name=Brand.HEADING_FONT,
-                     color=Brand.BLUE_MARINE, bold=True)
+                     color=Brand.NAVY, bold=True)
 
         # Stat tiles: label above value, value in ink (text never wears a data
         # colour), delta carrying both a status colour and a triangle so direction
@@ -797,7 +884,7 @@ def create_metrics_slide(prs, title, metrics_data, period_info):
     table_start_y = 0.7
     if insights:
         add_text_box(slide, "Key Insights", Inches(0.5), Inches(0.65), Inches(4), Inches(0.25),
-                     font_size=10, font_name=Brand.HEADING_FONT, color=Brand.BLUE_MARINE, bold=True)
+                     font_size=10, font_name=Brand.HEADING_FONT, color=Brand.NAVY, bold=True)
         for i, insight in enumerate(insights[:3]):
             add_text_box(slide, f"• {insight}", Inches(0.5), Inches(0.93 + i * INSIGHT_SPACING),
                          Inches(4.3), Inches(INSIGHT_BOX_HEIGHT), font_size=8, color=Brand.MID_GREY)
@@ -815,7 +902,7 @@ def create_metrics_slide(prs, title, metrics_data, period_info):
     metrics = metrics_data.get("metrics", [])
     current_period = period_info.get("period", "Current")
     prior_year_period = period_info.get("priorPeriod", "Prior Year")  # e.g., 2024 or Q4 2024
-    report_type = detect_report_type(current_period)
+    report_type = detect_report_type(current_period, period_info.get("periodType"))
 
     # For yearly reports, only show YoY comparison (no quarterly column)
     # For quarterly/monthly, show both period-over-period and year-over-year
@@ -859,15 +946,15 @@ def create_metrics_slide(prs, title, metrics_data, period_info):
                 row_data = [
                     metric.get("name", ""),
                     format_metric_value(metric.get("value", "")),
-                    metric.get("yearChange") or metric.get("periodChange", "N/A")
+                    decorate_delta(metric.get("yearChange") or metric.get("periodChange", "N/A"))
                 ]
             else:
                 # Quarterly/Monthly: 4 columns
                 row_data = [
                     metric.get("name", ""),
                     format_metric_value(metric.get("value", "")),
-                    metric.get("periodChange", "N/A"),
-                    metric.get("yearChange", "N/A")
+                    decorate_delta(metric.get("periodChange", "N/A")),
+                    decorate_delta(metric.get("yearChange", "N/A"))
                 ]
 
             for j, value in enumerate(row_data):
@@ -910,7 +997,7 @@ def create_metrics_slide(prs, title, metrics_data, period_info):
             # Text fallback if matplotlib unavailable
             add_text_box(slide, "Period Comparison", Inches(5), Inches(table_start_y),
                          Inches(4.5), Inches(0.3), font_size=12, font_name=Brand.HEADING_FONT,
-                         color=Brand.BLUE_MARINE, bold=True)
+                         color=Brand.NAVY, bold=True)
 
             for i, item in enumerate(chart_data[:6]):
                 y = table_start_y + 0.4 + i * 0.4
@@ -945,7 +1032,7 @@ def create_keywords_slide(prs, keywords_data, period_info):
     table_start_y = 0.7
     if insights:
         add_text_box(slide, "Key Insights", Inches(0.5), Inches(0.65), Inches(4), Inches(0.25),
-                     font_size=10, font_name=Brand.HEADING_FONT, color=Brand.BLUE_MARINE, bold=True)
+                     font_size=10, font_name=Brand.HEADING_FONT, color=Brand.NAVY, bold=True)
         for i, insight in enumerate(insights[:3]):
             add_text_box(slide, f"• {insight}", Inches(0.5), Inches(0.93 + i * INSIGHT_SPACING),
                          Inches(4.3), Inches(INSIGHT_BOX_HEIGHT), font_size=8, color=Brand.MID_GREY)
@@ -1015,7 +1102,7 @@ def create_keywords_slide(prs, keywords_data, period_info):
             # Text fallback
             add_text_box(slide, "Category Distribution", Inches(6.2), Inches(table_start_y),
                          Inches(3.2), Inches(0.3), font_size=12, font_name=Brand.HEADING_FONT,
-                         color=Brand.BLUE_MARINE, bold=True)
+                         color=Brand.NAVY, bold=True)
 
             total = sum(c.get("value", 0) for c in categories)
             for i, cat in enumerate(categories[:5]):
@@ -1047,7 +1134,7 @@ def create_reviews_slide(prs, reviews_data, period_info):
     content_start_y = 0.7
     if insights:
         add_text_box(slide, "Key Insights", Inches(0.5), Inches(0.65), Inches(4), Inches(0.25),
-                     font_size=10, font_name=Brand.HEADING_FONT, color=Brand.BLUE_MARINE, bold=True)
+                     font_size=10, font_name=Brand.HEADING_FONT, color=Brand.NAVY, bold=True)
         for i, insight in enumerate(insights[:3]):
             add_text_box(slide, f"• {insight}", Inches(0.5), Inches(0.93 + i * INSIGHT_SPACING),
                          Inches(4.3), Inches(INSIGHT_BOX_HEIGHT), font_size=8, color=Brand.MID_GREY)
@@ -1075,7 +1162,7 @@ def create_reviews_slide(prs, reviews_data, period_info):
             # Text fallback
             add_text_box(slide, "Sentiment Distribution", Inches(0.5), Inches(content_start_y + 0.35),
                          Inches(3), Inches(0.25), font_size=11, font_name=Brand.HEADING_FONT,
-                         color=Brand.BLUE_MARINE, bold=True)
+                         color=Brand.NAVY, bold=True)
 
             pos = sentiment.get("positive", 0)
             neu = sentiment.get("neutral", 0)
@@ -1165,7 +1252,7 @@ def create_recommendations_slide(prs, recommendations):
 
         # Recommendation title
         add_text_box(slide, rec.get("title", ""), Inches(1.1), Inches(y), Inches(8.4), Inches(0.35),
-                     font_size=14, font_name=Brand.HEADING_FONT, color=Brand.BLUE_MARINE, bold=True)
+                     font_size=14, font_name=Brand.HEADING_FONT, color=Brand.NAVY, bold=True)
 
         # Description
         add_text_box(slide, rec.get("description", ""), Inches(1.1), Inches(y + 0.4),
@@ -1199,7 +1286,7 @@ def create_appendix_slide(prs, appendix_data):
     data_sources = appendix_data.get("dataSources", [])
     if data_sources:
         add_text_box(slide, "Data Sources", Inches(0.5), Inches(left_y), Inches(4.5), Inches(0.25),
-                     font_size=11, font_name=Brand.HEADING_FONT, color=Brand.BLUE_MARINE, bold=True)
+                     font_size=11, font_name=Brand.HEADING_FONT, color=Brand.NAVY, bold=True)
         left_y += 0.3
         for source in data_sources:
             add_text_box(slide, f"• {source}", Inches(0.5), Inches(left_y), Inches(4.5), Inches(0.2),
@@ -1211,7 +1298,7 @@ def create_appendix_slide(prs, appendix_data):
     reporting_period = appendix_data.get("reportingPeriod", {})
     if reporting_period:
         add_text_box(slide, "Reporting Period", Inches(0.5), Inches(left_y), Inches(4.5), Inches(0.25),
-                     font_size=11, font_name=Brand.HEADING_FONT, color=Brand.BLUE_MARINE, bold=True)
+                     font_size=11, font_name=Brand.HEADING_FONT, color=Brand.NAVY, bold=True)
         left_y += 0.3
 
         # 'period' is the current key; 'quarter' is the legacy alias and is wrong
@@ -1238,7 +1325,7 @@ def create_appendix_slide(prs, appendix_data):
     calc_notes = appendix_data.get("calculationNotes", [])
     if calc_notes:
         add_text_box(slide, "Calculation Notes", Inches(5.2), Inches(right_y), Inches(4.5), Inches(0.25),
-                     font_size=11, font_name=Brand.HEADING_FONT, color=Brand.BLUE_MARINE, bold=True)
+                     font_size=11, font_name=Brand.HEADING_FONT, color=Brand.NAVY, bold=True)
         right_y += 0.3
         for note in calc_notes:
             add_text_box(slide, f"• {note}", Inches(5.2), Inches(right_y), Inches(4.5), Inches(0.35),
@@ -1250,7 +1337,7 @@ def create_appendix_slide(prs, appendix_data):
     loc_coverage = appendix_data.get("locationCoverage", {})
     if loc_coverage:
         add_text_box(slide, "Location Coverage", Inches(5.2), Inches(right_y), Inches(4.5), Inches(0.25),
-                     font_size=11, font_name=Brand.HEADING_FONT, color=Brand.BLUE_MARINE, bold=True)
+                     font_size=11, font_name=Brand.HEADING_FONT, color=Brand.NAVY, bold=True)
         right_y += 0.3
 
         for key, label in [("totalLocations", "Total Locations"),
@@ -1291,7 +1378,10 @@ def generate_report(data, output_path, is_draft=False):
     # Period info for subtitles
     period_info = {
         "period": data.get("period"),
-        "priorPeriod": data.get("priorPeriod")
+        "priorPeriod": data.get("priorPeriod"),
+        # Carried so the metrics slides can honour an explicit --period without
+        # re-guessing the report type from the period label.
+        "periodType": get_period_type(data),
     }
 
     # Create slides
@@ -1379,7 +1469,8 @@ def main():
         print(f"Error: Invalid JSON in {args.data}: {e}", file=sys.stderr)
         sys.exit(1)
 
-    data["periodType"] = data.get("periodType", args.period)
+    # The explicit --period wins unless the data file already states one.
+    data["periodType"] = get_period_type(data) or args.period
 
     # Generate report
     try:

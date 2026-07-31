@@ -58,7 +58,7 @@ Ratings tools take no `aggregation`. Keywords take `YYYY-MM` and have no `limit`
 - Confidentiality notice
 
 **Design:**
-- Background: Blue Marine (#001334)
+- Background: Navy (#000050)
 - Title: White, Montserrat Bold 48pt
 - Quarter badge: Orange (#FF8854) accent
 

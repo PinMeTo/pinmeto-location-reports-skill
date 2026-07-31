@@ -62,7 +62,7 @@ exceed 1000 and trigger `requiresConfirmation` on review insights: re-call with
 
 **Design:**
 - Premium feel for board presentation
-- Background: Gradient Blue Marine (#001334) to Blue (#3399FF)
+- Background: Gradient Navy (#000050) to Blue (#3399FF)
 - Title: White, Montserrat Bold 56pt
 - Year badge: Orange (#FF8854) accent circle
 - Full-bleed design

@@ -29,11 +29,18 @@ python scripts/validate_report_data.py report_data.json
   "companyName": "Brand Name",
   "title": "Location Analytics Report",
   "period": "Q4 2025",
+  "periodType": "quarterly",
   "priorPeriod": "Q3 2025",
   "dateRange": "October 1 - December 31, 2025",
   "priorDateRange": "July 1 - September 30, 2025"
 }
 ```
+
+`periodType` is one of `monthly`, `quarterly`, `half-yearly`, `yearly`. It selects the table
+layout (yearly drops the period-over-period column) and the highlights heading. Setting it makes
+the data file self-describing; otherwise pass `--period`, which fills it in. When neither is
+given, the generators infer the type from the `period` label, and that inference cannot recognise
+half-yearly from anything other than an `H1`/`H2` prefix.
 
 ## Executive Summary (Required)
 

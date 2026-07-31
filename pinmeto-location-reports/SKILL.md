@@ -102,12 +102,22 @@ comparison type. With a single YoY call, set `periodChange` to "N/A" rather than
 
 Parse natural language to determine report type:
 
-| Pattern | Report Type | Keywords |
-|---------|-------------|----------|
-| Monthly | 8-15 pages | "October 2024", "last month", "2024-10" |
-| Quarterly | 10-18 pages | "Q3 2024", "Q1", "third quarter", "last quarter" |
-| Half-Yearly | 12-20 pages | "H1 2024", "first half", "H2", "second half" |
-| Yearly | 15-25 pages | "2024", "annual", "yearly", "year-end" |
+| Report Type | Keywords |
+|-------------|----------|
+| Monthly | "October 2024", "last month", "2024-10" |
+| Quarterly | "Q3 2024", "Q1", "third quarter", "last quarter" |
+| Half-Yearly | "H1 2024", "first half", "H2", "second half" |
+| Yearly | "2024", "annual", "yearly", "year-end" |
+
+Always pass the detected type to the generators with `--period`. It is authoritative: it selects
+the yearly three-column table layout (value plus YoY, no period-over-period column) and the
+highlights heading. Without it the generators fall back to inferring the type from the free-text
+period label, which is a guess.
+
+**Page count is driven by the data, not the period.** Each platform, keywords, and reviews
+section is emitted only when its data is present, so a report covering Google alone is far
+shorter than one covering three platforms plus keywords and sentiment. A full report over all
+sections runs about 9 pages. Do not promise a page count before seeing what the fetch returns.
 
 ### Date Range Calculation
 
@@ -199,6 +209,8 @@ rewrite them: they encode the branding and layout, and a copy will drift.
 SKILL_DIR="/path/to/pinmeto-location-reports"
 
 pip install reportlab python-pptx pillow matplotlib
+# matplotlib is not optional in practice: generate_pdf.py imports it at module
+# level, and generate_pptx.py silently degrades to text-based charts without it.
 
 # PDF
 python "$SKILL_DIR/scripts/generate_pdf.py" \
@@ -209,9 +221,10 @@ python "$SKILL_DIR/scripts/generate_pptx.py" \
   --data report_data.json --output report.pptx --period quarterly
 ```
 
-`--period` accepts `monthly`, `quarterly`, `half-yearly`, or `yearly`.
+`--period` accepts `monthly`, `quarterly`, `half-yearly`, or `yearly`, and takes precedence over
+the period label in the data. Set `periodType` in the data JSON instead to make it self-describing.
 
-### Step 7: Client Review (Human-in-the-Loop)
+### Step 7: Customer Review (Human-in-the-Loop)
 
 Present a draft for review before finalizing.
 
@@ -245,7 +258,7 @@ State any `dataWarnings` here. A platform that returned no data looks identical 
 decline in the finished report.
 
 **7.3 Review checklist** (full version in
-[references/client-review.md](references/client-review.md)): executive summary accuracy, KPI
+[references/customer-review.md](references/customer-review.md)): executive summary accuracy, KPI
 values, chart rendering, table completeness, text correctness, branding.
 
 **7.4 Handle feedback:**
@@ -263,70 +276,23 @@ field sources, and common failures: [references/data-schema.md](references/data-
 
 ## Brand Guidelines
 
-### Colors
-| Name | Hex | Usage |
-|------|-----|-------|
-| Blue (Primary) | `#3399FF` | Headings, rules, brand accents |
-| Orange (Accent) | `#FF8854` | Highlights, CTAs, emphasis |
-| Blue Marine (Dark) | `#001334` | Dark backgrounds, text |
-| Light Blue | `#bbd9fa` | Secondary backgrounds |
-| Grey | `#F2F3F4` | Light backgrounds |
-| Mid Grey | `#333333` | Body text |
+Both generators hardcode the full palette, typeface, and chart tokens, so generating a report
+needs none of it in context. Read [references/branding.md](references/branding.md) before editing
+a generator's tokens, adding a chart type, or answering a brand question.
 
-### Chart & status colors
+The four rules that get violated most often:
 
-Data marks use deepened steps of the brand hues. The brand palette itself is a UI
-palette: measured against a white chart surface, `#bbd9fa` reads gray and both `#3399FF` and
-`#FF8854` fall below the 3:1 contrast floor, so they are kept for typography and rules rather
-than for marks.
+- **Montserrat is the only brand typeface.** It ships in `assets/fonts/`, so reports are on-brand
+  on machines that never installed it. PDF embeds it; PPTX cannot, so deliver PDF when typography
+  must be guaranteed.
+- **Navy is `#000050`**, and it is the body ink. Not `#001334`.
+- **Brand hues are not data colours.** `#3399FF` and `#FF8854` fall below the 3:1 contrast floor
+  against a white chart surface. Charts use the validated tokens in `references/branding.md`.
+- **Direction is never colour alone.** Every delta carries a triangle (▲ / ▼ / –) beside the
+  status colour, so red-green colourblind readers can still tell a rise from a fall.
 
-| Token | Hex | Usage |
-|-------|-----|-------|
-| Chart blue | `#1F7AE0` | Categorical slot 1, all single-series bars |
-| Chart orange | `#E8690B` | Categorical slot 2 |
-| Chart violet | `#5B4B8A` | Categorical slot 3 |
-| Prior wash | `#C9DCF3` | Prior-period series (de-emphasis, not a slot) |
-| Status good | `#0E7C4A` | Positive change |
-| Status bad | `#CC3311` | Negative change |
-| Star amber | `#C77700` | Star rating fill |
-
-**Direction is never colour alone.** Every delta carries a triangle (▲ / ▼ / –) alongside the
-status colour, because the previous green/orange pair measured ΔE 1.8 under protanopia: red-green
-colourblind readers could not tell a rise from a fall.
-
-Both generators define these tokens at the top of the file. If they change, re-run the
-`dataviz` skill's validator rather than eyeballing the result:
-
-```bash
-node <dataviz-skill>/scripts/validate_palette.js "#1F7AE0,#E8690B,#5B4B8A" --mode light
-```
-
-### Chart conventions
-
-- Categorical hues are assigned in fixed slot order, so a chart with fewer series never
-  repaints the survivors.
-- Nominal categories (keyword types, themes) get **one** hue for every bar. Identity comes from
-  the labels; a darker-where-bigger ramp would double-encode length as colour.
-- Sentiment is polarity, so it is the one breakdown where colour means state: good, neutral
-  gray, bad.
-- Part-to-whole breakdowns render as labelled horizontal bars, not pies. These distributions
-  routinely have close values (52% vs 38%), where arc length stops being comparable.
-- Only the current series is directly labelled. A number above every bar goes unread; the
-  recessive grid and the table carry the rest.
-- A KPI with a `max` renders as stars (see
-  [references/data-schema.md](references/data-schema.md)). The last star is filled to the exact
-  remainder rather than rounded to a half, so the stars never overstate the printed number.
-
-### Typography
-- **Headlines:** Montserrat (Bold/SemiBold) for all headers and short text
-- **Body Text:** Recursive Mono Linear for long paragraphs only
-- **Fallbacks:** Arial (headlines), Georgia (body)
-
-### Logo Usage
-- Landscape version for report headers/footers, vertical for cover pages
-- Logos in `assets/logos/` (SVG and JPG)
-- Maintain clear space of at least the logo height around it
-- Never stretch, recolor, or rearrange logo elements
+Never set body copy in white on Blue or Orange: white on Orange measures 2.0:1 and fails even
+the large-text floor. Use Navy on both brand backgrounds.
 
 ## Reference Files
 
@@ -334,13 +300,14 @@ node <dataviz-skill>/scripts/validate_palette.js "#1F7AE0,#E8690B,#5B4B8A" --mod
 |------|---------|
 | `references/workflow-details.md` | MCP tool contracts, parameters, response shapes |
 | `references/data-schema.md` | Report data JSON schema and field sources |
+| `references/branding.md` | Colours, contrast ratios, typography, chart tokens, tone of voice |
 | `references/monthly.md` | Monthly report structure (8-15 pages) |
 | `references/quarterly.md` | Quarterly report structure (10-18 pages) |
 | `references/half-yearly.md` | Half-yearly report structure (12-20 pages) |
 | `references/yearly.md` | Yearly report structure (15-25 pages) |
 | `references/metrics-glossary.md` | Metric keys and derived roll-ups |
 | `references/keyword-classification.md` | Keyword categorization rules |
-| `references/client-review.md` | Client review checklist |
+| `references/customer-review.md` | Customer review checklist |
 | `references/qa-checklist.md` | Quality assurance checklist |
 
 ## Output Formats

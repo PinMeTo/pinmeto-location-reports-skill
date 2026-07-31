@@ -7,6 +7,93 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **`--period` is no longer inert.** Both generators wrote the caller's period type into the data
+  dict (under two different key spellings, `period_type` and `periodType`) and never read it back.
+  The report type was instead regex-guessed from the free-text `period` label, so an explicit
+  `--period yearly` was discarded. An explicit type is now authoritative and selects the yearly
+  three-column table layout and the highlights heading; label inference remains as a fallback.
+- **Half-yearly reports were silently downgraded.** The label inference had no half-yearly branch,
+  so "H1 2025" matched nothing, fell through to the quarterly layout, and lost its highlights
+  heading. Added an `H1`/`H2` pattern plus a `Half-Year Highlights` label to both generators.
+- **Table delta cells now carry a direction glyph.** The stat tiles drew a triangle beside every
+  delta while the tables conveyed direction through colour and the +/- sign alone, leaving them a
+  channel short for the readers the triangle exists for — despite the helper's own docstring
+  claiming parity with the tiles. Cells are prefixed ▲/▼/– in both generators. The glyph is
+  suppressed when the brand font is unavailable, since the base-14 fallback has no triangle and
+  would render a black box; the signed value remains.
+- **Draft watermark no longer clips.** Introduced by the Montserrat switch: at 60pt this string is
+  845pt wide in Montserrat against 783pt in Helvetica, pushing it off the left edge. The size is
+  now derived from the page, accounting for both the string width and its line height, since a
+  rotated text block projects both onto each axis. Verified as zero ink on all four page borders
+  across every page, and stable for A4 and Letter in either font.
+- The PPTX watermark no longer risks wrapping to two lines: at 48pt bold the string slightly
+  exceeds its 9in box, so word wrap is disabled and it overflows harmlessly instead.
+
+### Changed
+
+- Platform charts now span the full 495pt text column at 320pt tall, up from 450x220. Chart pages
+  went from 73-79% vertical fill to 87-94% without changing the page count. Narrative pages are
+  left alone deliberately: their whitespace tracks content length, and padding it would be worse
+  than the gap.
+- Reframed SKILL.md's period table, which presented per-period page ranges (8-15, 10-18, 12-20,
+  15-25) as generator characteristics. Page count is driven by which sections have data — a
+  full report runs about 9 pages, and dropping three sections yields 6 — so the ranges were not
+  something the generator could honour. Documented `periodType` in the data schema.
+
+### Fixed (earlier in this release)
+
+- **Navy corrected to `#000050`.** The generators and reference files used `#001334`, which is
+  not a PinMeTo colour. Both the Graphic Manual (May 2026) and the Brand Book specify `#000050`.
+  The token is now named `NAVY` rather than `BLUE_MARINE` to match the brand's own name for it.
+- **Typography now matches the documented spec.** SKILL.md claimed Montserrat headlines with
+  Recursive Mono Linear body text and Arial/Georgia fallbacks. In reality `generate_pdf.py`
+  hardcoded Helvetica throughout and `generate_pptx.py` set Arial, so no report had ever
+  rendered in a brand typeface. Recursive Mono Linear was never a PinMeTo font at all.
+- Corrected the documented Python dependencies. `generate_pdf.py` imports matplotlib at module
+  level, making it a hard requirement that CLAUDE.md omitted. The asymmetry with
+  `generate_pptx.py`, which degrades to text charts without matplotlib, is now documented.
+
+### Added
+
+- **Montserrat bundled in `assets/fonts/`** (Regular, SemiBold, Bold) under the SIL Open Font
+  License. Registered with both ReportLab and matplotlib, so PDF pages and chart images share
+  one typeface and reports render on-brand on machines that never installed Montserrat. A
+  missing or unreadable TTF falls back to Helvetica document-wide with a warning on stderr
+  rather than mixing families or aborting.
+- `references/branding.md` — colours, measured contrast ratios, typography, chart tokens, logo
+  rules, and tone of voice for generated narrative. Includes the Brand Book's text-on-brand
+  ratios: white on Orange measures 2.0:1 and fails even the large-text floor.
+
+### Changed
+
+- Brand Guidelines moved out of SKILL.md into `references/branding.md`, cutting the body from
+  2,094 to ~1,800 words. The generators hardcode every token, so producing a report no longer
+  loads palette detail into context; it is read only when editing a generator or answering a
+  brand question.
+- Renamed `references/client-review.md` to `references/customer-review.md` and replaced the
+  human-relationship uses of "client" throughout. The Brand Book is explicit: "We avoid the term
+  'client.' We use customer or user." Technical uses ("MCP client", "client-side") are unchanged.
+
+### Removed
+
+- `assets/templates/` — four HTML slide templates referenced by nothing: not SKILL.md, not any
+  reference file, and not either generator. They were an abandoned HTML-rendering approach
+  superseded by `generate_pptx.py`, and still carried the stale `#001334`.
+- Dead code in both generators, verified unreachable and confirmed behaviour-neutral (text,
+  fonts, span geometry, and PPTX shape tree are byte-identical before and after):
+  - `create_bar_chart` and `create_line_chart` in `generate_pdf.py`, ReportLab-graphics chart
+    builders superseded by the matplotlib path. Being unreachable, they had never been updated
+    to the validated chart palette and still painted bars in `PINMETO_BLUE`/`PINMETO_LIGHT_BLUE`
+    — the exact combination the skill's own notes record as having failed contrast validation.
+  - `get_kpi_table_style` (`generate_pdf.py`) and `set_shape_fill` (`generate_pptx.py`).
+  - The `get_previous_quarter` back-compat shim in both generators. Nothing imports either
+    module — both are CLI entry points — so the deprecated alias had no caller to support.
+  - Orphaned imports: `HorizontalLineChart`, `VerticalBarChart`, `Pie`, `Any`, `TA_RIGHT`,
+    `landscape`, `cm`, `BaseDocTemplate`, `Frame`, `PageTemplate` (`generate_pdf.py`); `nsmap`
+    and `parse_xml` (`generate_pptx.py`).
+
 ## [1.1.0] - 2026-07-30
 
 ### Fixed

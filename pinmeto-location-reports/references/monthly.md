@@ -54,7 +54,7 @@ Ratings tools take no `aggregation`. Keywords take `YYYY-MM` and have no `limit`
 - Confidentiality notice (optional)
 
 **Design:**
-- Background: Blue Marine (#001334)
+- Background: Navy (#000050)
 - Title: White, Montserrat Bold 42pt
 - Subtitle: Blue (#3399FF), Montserrat 24pt
 
@@ -315,4 +315,4 @@ Note: Apple Maps data may have limited historical comparison.
 - Header row: Blue (#3399FF) background, white text
 - Alternating rows: White / Grey (#F2F3F4)
 - Border: 1px Light Blue (#bbd9fa)
-- Font: Montserrat for headers, Recursive for data
+- Font: Montserrat SemiBold for headers, Montserrat Regular for data
