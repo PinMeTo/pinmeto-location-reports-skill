@@ -60,7 +60,7 @@ have no `limit`. See [workflow-details.md](workflow-details.md) for the full con
 - PinMeTo logo (vertical version)
 
 **Design:**
-- Background: Gradient Blue Marine to Blue
+- Background: Gradient Navy (#000050) to Blue (#3399FF)
 - Title: White, Montserrat Bold 52pt
 - Half badge: Orange (#FF8854)
 

@@ -9,7 +9,7 @@ Complete this checklist before delivering any report to ensure quality and accur
 - [Report Content Checks](#report-content-checks)
 - [Branding Compliance](#branding-compliance)
 - [Format-Specific Checks](#format-specific-checks)
-- [Client Review](#client-review)
+- [Customer Review](#customer-review)
 - [Final Review](#final-review)
 - [Issue Resolution](#issue-resolution)
 - [Sign-Off](#sign-off)
@@ -93,13 +93,13 @@ Complete this checklist before delivering any report to ensure quality and accur
 ### Colors
 - [ ] Primary Blue (#3399FF) used correctly
 - [ ] Accent Orange (#FF8854) used for highlights
-- [ ] Dark backgrounds use Blue Marine (#001334)
+- [ ] Dark backgrounds use Navy (#000050)
 - [ ] Light backgrounds use Grey (#F2F3F4)
 - [ ] No off-brand colors used
 
 ### Typography
 - [ ] Headlines use Montserrat
-- [ ] Long body text uses Recursive (if applicable)
+- [ ] Body text uses Montserrat Regular (no other family appears)
 - [ ] Font sizes appropriate for format
 - [ ] Text contrast sufficient for readability
 
@@ -127,22 +127,22 @@ Complete this checklist before delivering any report to ensure quality and accur
 - [ ] Speaker notes included (if requested)
 - [ ] File opens without errors
 
-## Client Review
+## Customer Review
 
-**Important:** Before delivering the final report, generate a draft version for client review.
+**Important:** Before delivering the final report, generate a draft version for customer review.
 
 ### Draft Generation
 - [ ] Generated report with `--draft` flag
 - [ ] Watermark ("DRAFT - PENDING REVIEW") visible on all pages/slides
 - [ ] File named with "_DRAFT" suffix (e.g., `Brand_Q4_Report_DRAFT.pdf`)
 
-### Present to Client
+### Present to the Customer
 - [ ] Summary of key data points provided
-- [ ] Review checklist shared (see `references/client-review.md`)
+- [ ] Review checklist shared (see `references/customer-review.md`)
 - [ ] Clear instructions for approval or feedback
 
-### Client Verification
-Have the client verify:
+### Customer Verification
+Have the customer verify:
 - [ ] Executive summary narrative is accurate
 - [ ] KPI values are present and correct
 - [ ] Charts and graphs render properly

@@ -1,4 +1,4 @@
-# Client Review Checklist
+# Customer Review Checklist
 
 Use this checklist when reviewing draft reports before finalizing.
 

@@ -18,10 +18,10 @@ Author: PinMeTo
 import argparse
 import io
 import json
+import math
 import os
 from datetime import datetime
 from pathlib import Path
-from typing import Any
 
 import matplotlib
 matplotlib.use('Agg')  # Non-interactive backend for PDF generation
@@ -47,17 +47,14 @@ def find_logo_path(provided_path=None):
     return None
 
 from reportlab.lib import colors
-from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
-from reportlab.lib.pagesizes import A4, landscape
+from reportlab.lib.enums import TA_CENTER, TA_LEFT
+from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
-from reportlab.lib.units import cm, inch
+from reportlab.lib.units import inch
 from reportlab.platypus import (
-    BaseDocTemplate,
-    Frame,
     Image,
     KeepTogether,
     PageBreak,
-    PageTemplate,
     Paragraph,
     SimpleDocTemplate,
     Spacer,
@@ -65,9 +62,84 @@ from reportlab.platypus import (
     TableStyle,
 )
 from reportlab.graphics.shapes import Drawing, Line, Rect, String
-from reportlab.graphics.charts.linecharts import HorizontalLineChart
-from reportlab.graphics.charts.barcharts import VerticalBarChart
-from reportlab.graphics.charts.piecharts import Pie
+from reportlab.pdfbase import pdfmetrics
+from reportlab.pdfbase.ttfonts import TTFont
+
+
+# =============================================================================
+# Brand Typeface
+# =============================================================================
+# Montserrat is the only PinMeTo brand typeface (Graphic Manual, May 2026). The
+# TTFs ship in assets/fonts/ under the SIL Open Font License so reports render
+# on-brand on a machine that has never installed the font.
+#
+# Registration is best-effort: a missing or unreadable TTF falls back to
+# Helvetica rather than aborting the report. Helvetica is metrically close enough
+# that layout holds, but it is NOT brand-compliant, so the fallback announces
+# itself on stderr instead of failing silently.
+FONTS_DIR = SCRIPT_DIR.parent / "assets" / "fonts"
+
+_MONTSERRAT_FACES = {
+    "regular": ("Montserrat", "Montserrat-Regular.ttf"),
+    "semibold": ("Montserrat-SemiBold", "Montserrat-SemiBold.ttf"),
+    "bold": ("Montserrat-Bold", "Montserrat-Bold.ttf"),
+}
+
+_HELVETICA_FALLBACK = {
+    "regular": "Helvetica",
+    "semibold": "Helvetica-Bold",
+    "bold": "Helvetica-Bold",
+}
+
+
+def register_brand_fonts():
+    """Register the bundled Montserrat faces, returning the usable font names.
+
+    Returns a dict keyed 'regular'/'semibold'/'bold'. Every face must register
+    for the family to be used: a partial registration would mix Montserrat body
+    text with Helvetica headings, which looks worse than consistent Helvetica.
+    """
+    registered = {}
+    for weight, (font_name, filename) in _MONTSERRAT_FACES.items():
+        path = FONTS_DIR / filename
+        if not path.exists():
+            print(f"Warning: brand font missing ({path}); falling back to Helvetica.")
+            return dict(_HELVETICA_FALLBACK)
+        try:
+            pdfmetrics.registerFont(TTFont(font_name, str(path)))
+        except Exception as exc:  # unreadable/corrupt TTF
+            print(f"Warning: could not register {filename} ({exc}); falling back to Helvetica.")
+            return dict(_HELVETICA_FALLBACK)
+        registered[weight] = font_name
+
+    # Map the bold/italic slots so <b> in Paragraph markup resolves to the bold
+    # face instead of reportlab synthesising a smeared fake bold.
+    pdfmetrics.registerFontFamily(
+        "Montserrat",
+        normal="Montserrat",
+        bold="Montserrat-Bold",
+        italic="Montserrat",
+        boldItalic="Montserrat-Bold",
+    )
+    return registered
+
+
+BRAND_FONTS = register_brand_fonts()
+FONT_REGULAR = BRAND_FONTS["regular"]
+FONT_SEMIBOLD = BRAND_FONTS["semibold"]
+FONT_BOLD = BRAND_FONTS["bold"]
+
+# matplotlib keeps its own font cache, so the same TTFs are registered again for
+# the chart renderer. Without this, charts silently render in DejaVu Sans while
+# the surrounding page is Montserrat.
+if FONT_REGULAR != "Helvetica":
+    from matplotlib import font_manager
+
+    for _face in _MONTSERRAT_FACES.values():
+        _face_path = FONTS_DIR / _face[1]
+        if _face_path.exists():
+            font_manager.fontManager.addfont(str(_face_path))
+    plt.rcParams["font.family"] = "Montserrat"
 
 
 # =============================================================================
@@ -150,13 +222,47 @@ def get_previous_period(period, report_type=None):
     return None
 
 
-def detect_report_type(period):
-    """Detect report type from period string.
+# Accepted spellings for an explicit report type, mapped to the canonical value.
+REPORT_TYPE_ALIASES = {
+    'monthly': 'monthly',
+    'quarterly': 'quarterly',
+    'half-yearly': 'half-yearly',
+    'half_yearly': 'half-yearly',
+    'halfyearly': 'half-yearly',
+    'yearly': 'yearly',
+    'annual': 'yearly',
+}
+
+
+def get_period_type(data: dict):
+    """Read the caller's explicit report type from the data dict.
+
+    Accepts both spellings because the two generators historically wrote
+    different keys ('periodType' and 'period_type') and neither read them back.
+    """
+    if not isinstance(data, dict):
+        return None
+    return data.get('periodType') or data.get('period_type')
+
+
+def detect_report_type(period, period_type=None):
+    """Resolve the report type, preferring an explicit period type over inference.
+
+    An explicit `--period` is authoritative: it is what the caller asked for.
+    Inference from the free-text period label is only a fallback, and it cannot
+    recognise half-yearly on its own ('H1 2025' matched no pattern), which
+    silently downgraded every half-yearly report to the quarterly layout.
 
     Returns:
-        'yearly', 'quarterly', 'monthly', or None
+        'yearly', 'quarterly', 'half-yearly', 'monthly', or None
     """
     import re
+
+    if period_type:
+        resolved = REPORT_TYPE_ALIASES.get(str(period_type).strip().lower())
+        if resolved:
+            return resolved
+
     if not period:
         return None
 
@@ -168,6 +274,10 @@ def detect_report_type(period):
     if re.match(r'Q\d\s+\d{4}', str(period)):
         return 'quarterly'
 
+    # Half-yearly: H1/H2 YYYY
+    if re.match(r'^H[12]\s+\d{4}', str(period).strip(), re.IGNORECASE):
+        return 'half-yearly'
+
     # Monthly: Month name + year
     months = ['January', 'February', 'March', 'April', 'May', 'June',
               'July', 'August', 'September', 'October', 'November', 'December']
@@ -178,19 +288,12 @@ def detect_report_type(period):
     return None
 
 
-# Keep old function name for backwards compatibility
-def get_previous_quarter(period):
-    """Deprecated: Use get_previous_period() instead."""
-    result = get_previous_period(period)
-    return result if result else "Prior Period"
-
-
 # =============================================================================
 # PinMeTo Brand Colors
 # =============================================================================
 PINMETO_BLUE = colors.HexColor('#3399FF')
 PINMETO_ORANGE = colors.HexColor('#FF8854')
-PINMETO_BLUE_MARINE = colors.HexColor('#001334')
+PINMETO_NAVY = colors.HexColor('#000050')
 PINMETO_LIGHT_BLUE = colors.HexColor('#bbd9fa')
 PINMETO_GREY = colors.HexColor('#F2F3F4')
 PINMETO_MID_GREY = colors.HexColor('#333333')
@@ -232,12 +335,22 @@ STATUS_BAD = colors.HexColor('#CC3311')
 STAR_AMBER = colors.HexColor('#C77700')
 
 # Ink and chrome
-INK = PINMETO_BLUE_MARINE
+INK = PINMETO_NAVY
 INK_MUTED = colors.HexColor('#5A6472')
 HAIRLINE = colors.HexColor('#DCE3EC')
 TILE_SURFACE = colors.HexColor('#F5F8FC')
 TABLE_HEADER_BG = colors.HexColor('#EAF2FD')
 TABLE_ZEBRA = colors.HexColor('#FAFBFD')
+
+# Platform chart footprint. The text frame is 495pt wide (A4 less 50pt margins),
+# so the chart spans it fully rather than leaving a 45pt gutter that made pages
+# read as unfinished. Height is set from the space actually free on the shortest
+# platform page (the Google section, whose insight list and table run longest):
+# 320pt fills it while leaving ~44pt of clearance, so no chart is pushed onto a
+# page of its own. Raising this further risks exactly that, which is why it is a
+# named constant and not an inline literal.
+PLATFORM_CHART_WIDTH = 495
+PLATFORM_CHART_HEIGHT = 320
 
 # Categorical order is fixed: slot N always gets the same hue regardless of how
 # many slices are present, so a filtered chart never repaints its survivors.
@@ -247,15 +360,26 @@ CHART_COLORS = [CHART_BLUE, CHART_ORANGE, CHART_VIOLET, INK_MUTED]
 SENTIMENT_COLORS = [STATUS_GOOD, colors.HexColor('#9AA4B2'), STATUS_BAD]
 
 
+# Direction glyphs for text contexts (table cells), as opposed to the drawn
+# polygon used on the stat tiles. Montserrat carries all three; the base-14
+# fallback carries none, hence DIRECTION_GLYPHS_AVAILABLE below.
+DELTA_GLYPHS = {1: '▲', -1: '▼', 0: '–'}  # ▲ ▼ –
+DIRECTION_GLYPHS_AVAILABLE = FONT_REGULAR != 'Helvetica'
+_GLYPH_PREFIX_CHARS = ''.join(DELTA_GLYPHS.values()) + ' \t'
+
+
 def change_direction(change) -> int:
     """Classify a change string as positive (1), negative (-1), or neutral (0).
 
     Neutral covers 'N/A', 'No change', empty, and an explicit zero, none of which
     should be painted as a win or a loss.
+
+    Tolerates an already-applied direction glyph so callers may classify a
+    decorated cell without having to keep the raw string around.
     """
     if not change:
         return 0
-    text = str(change).strip()
+    text = str(change).strip().lstrip(_GLYPH_PREFIX_CHARS).strip()
     if not text or text.upper() in {'N/A', 'NA', '-', '--'}:
         return 0
     if 'no change' in text.lower():
@@ -284,6 +408,30 @@ def status_color(change):
     return INK_MUTED
 
 
+def decorate_delta(value):
+    """Prefix a change string with its direction glyph.
+
+    Table cells previously carried direction in colour and the +/- sign only,
+    while the stat tiles also drew a triangle. That left the tables one channel
+    short of the tiles for exactly the readers the triangle exists for.
+
+    Returns the value untouched when the brand font is unavailable: the base-14
+    fallback has no triangle glyph and would render a black box, which is worse
+    than the sign alone. Also untouched for 'N/A'-style cells, which have no
+    direction to report.
+    """
+    if not DIRECTION_GLYPHS_AVAILABLE or value is None:
+        return value
+    text = str(value)
+    if not text.strip():
+        return text
+    if text.strip().upper() in {'N/A', 'NA', '-', '--'}:
+        return text
+    if text.strip()[0] in DELTA_GLYPHS.values():
+        return text  # already decorated
+    return f"{DELTA_GLYPHS[change_direction(text)]} {text}"
+
+
 # =============================================================================
 # Custom Styles
 # =============================================================================
@@ -294,9 +442,9 @@ def get_pinmeto_styles():
     # Title style (left-aligned for cover page consistency)
     styles.add(ParagraphStyle(
         name='PinMeToTitle',
-        fontName='Helvetica-Bold',
+        fontName=FONT_BOLD,
         fontSize=28,
-        leading=34,        textColor=PINMETO_BLUE_MARINE,
+        leading=34,        textColor=PINMETO_NAVY,
         alignment=TA_LEFT,
         spaceAfter=20,
     ))
@@ -304,7 +452,7 @@ def get_pinmeto_styles():
     # Heading 1
     styles.add(ParagraphStyle(
         name='PinMeToH1',
-        fontName='Helvetica-Bold',
+        fontName=FONT_BOLD,
         fontSize=18,
         leading=22,        textColor=PINMETO_BLUE,
         spaceBefore=20,
@@ -314,9 +462,9 @@ def get_pinmeto_styles():
     # Heading 2
     styles.add(ParagraphStyle(
         name='PinMeToH2',
-        fontName='Helvetica-Bold',
+        fontName=FONT_BOLD,
         fontSize=14,
-        leading=18,        textColor=PINMETO_BLUE_MARINE,
+        leading=18,        textColor=PINMETO_NAVY,
         spaceBefore=16,
         spaceAfter=8,
     ))
@@ -324,7 +472,7 @@ def get_pinmeto_styles():
     # Body text
     styles.add(ParagraphStyle(
         name='PinMeToBody',
-        fontName='Helvetica',
+        fontName=FONT_REGULAR,
         fontSize=10,
         textColor=PINMETO_MID_GREY,
         spaceBefore=6,
@@ -335,7 +483,7 @@ def get_pinmeto_styles():
     # KPI highlight
     styles.add(ParagraphStyle(
         name='PinMeToKPI',
-        fontName='Helvetica-Bold',
+        fontName=FONT_BOLD,
         fontSize=24,
         leading=28,        textColor=PINMETO_BLUE,
         alignment=TA_CENTER,
@@ -344,7 +492,7 @@ def get_pinmeto_styles():
     # KPI label
     styles.add(ParagraphStyle(
         name='PinMeToKPILabel',
-        fontName='Helvetica',
+        fontName=FONT_REGULAR,
         fontSize=9,
         leading=11,        textColor=PINMETO_MID_GREY,
         alignment=TA_CENTER,
@@ -353,9 +501,9 @@ def get_pinmeto_styles():
     # Narrative/summary text
     styles.add(ParagraphStyle(
         name='PinMeToNarrative',
-        fontName='Helvetica',
+        fontName=FONT_REGULAR,
         fontSize=11,
-        textColor=PINMETO_BLUE_MARINE,
+        textColor=PINMETO_NAVY,
         spaceBefore=10,
         spaceAfter=15,
         leading=16,
@@ -364,7 +512,7 @@ def get_pinmeto_styles():
     # Insight bullet point
     styles.add(ParagraphStyle(
         name='PinMeToInsight',
-        fontName='Helvetica',
+        fontName=FONT_REGULAR,
         fontSize=9,
         textColor=PINMETO_MID_GREY,
         spaceBefore=3,
@@ -375,7 +523,7 @@ def get_pinmeto_styles():
     # Appendix section header
     styles.add(ParagraphStyle(
         name='PinMeToAppendixH2',
-        fontName='Helvetica-Bold',
+        fontName=FONT_BOLD,
         fontSize=11,
         leading=14,        textColor=PINMETO_BLUE,
         spaceBefore=12,
@@ -385,7 +533,7 @@ def get_pinmeto_styles():
     # Appendix body text (smaller)
     styles.add(ParagraphStyle(
         name='PinMeToAppendixBody',
-        fontName='Helvetica',
+        fontName=FONT_REGULAR,
         fontSize=9,
         textColor=PINMETO_MID_GREY,
         spaceBefore=2,
@@ -417,7 +565,7 @@ def get_data_table_style(text_columns=()):
         # Header row: tint + ink, with a single rule carrying the brand colour.
         ('BACKGROUND', (0, 0), (-1, 0), TABLE_HEADER_BG),
         ('TEXTCOLOR', (0, 0), (-1, 0), INK),
-        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTNAME', (0, 0), (-1, 0), FONT_BOLD),
         ('FONTSIZE', (0, 0), (-1, 0), 9),
         ('ALIGN', (0, 0), (0, 0), 'LEFT'),
         ('ALIGN', (1, 0), (-1, 0), 'RIGHT'),
@@ -427,7 +575,7 @@ def get_data_table_style(text_columns=()):
         ('LINEBELOW', (0, 0), (-1, 0), 1.2, CHART_BLUE),
 
         # Data rows. Header and body share alignment so columns read as columns.
-        ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
+        ('FONTNAME', (0, 1), (-1, -1), FONT_REGULAR),
         ('FONTSIZE', (0, 1), (-1, -1), 9),
         ('TEXTCOLOR', (0, 1), (-1, -1), INK),
         ('ALIGN', (0, 1), (0, -1), 'LEFT'),
@@ -464,114 +612,9 @@ def change_column_styles(table_data, first_change_col=2):
     return commands
 
 
-def get_kpi_table_style():
-    """KPI summary table styling."""
-    return TableStyle([
-        ('BACKGROUND', (0, 0), (-1, -1), PINMETO_GREY),
-        ('BOX', (0, 0), (-1, -1), 1, PINMETO_LIGHT_BLUE),
-        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-        ('LEFTPADDING', (0, 0), (-1, -1), 15),
-        ('RIGHTPADDING', (0, 0), (-1, -1), 15),
-        ('TOPPADDING', (0, 0), (-1, -1), 10),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 10),
-    ])
-
-
 # =============================================================================
 # Chart Creation
 # =============================================================================
-def create_line_chart(data: list[dict], width=400, height=200) -> Drawing:
-    """Create a branded line chart. Returns empty Drawing if data is invalid."""
-    drawing = Drawing(width, height)
-
-    # Guard against empty or invalid data
-    if not data or not isinstance(data, list):
-        return drawing
-
-    chart = HorizontalLineChart()
-    chart.x = 50
-    chart.y = 30
-    chart.width = width - 80
-    chart.height = height - 60
-
-    # Extract data
-    labels = [d.get('label', '') for d in data]
-    values = [d.get('value', 0) for d in data]
-
-    chart.data = [values]
-    chart.categoryAxis.categoryNames = labels
-    chart.categoryAxis.labels.fontName = 'Helvetica'
-    chart.categoryAxis.labels.fontSize = 8
-    chart.valueAxis.labels.fontName = 'Helvetica'
-    chart.valueAxis.labels.fontSize = 8
-
-    # Styling
-    chart.lines[0].strokeColor = PINMETO_BLUE
-    chart.lines[0].strokeWidth = 2
-
-    drawing.add(chart)
-    return drawing
-
-
-def create_bar_chart(data: list[dict], width=400, height=200, current_label=None, prior_label=None) -> Drawing:
-    """Create a branded bar chart with optional comparison period. Returns empty Drawing if data is invalid."""
-    drawing = Drawing(width, height)
-
-    # Guard against empty or invalid data
-    if not data or not isinstance(data, list):
-        return drawing
-
-    # Use actual period names if provided
-    current_legend = current_label or 'Current'
-    prior_legend = prior_label or 'Prior'
-
-    chart = VerticalBarChart()
-    chart.x = 50
-    chart.y = 30
-    chart.width = width - 80
-    chart.height = height - 60
-
-    # Extract data
-    labels = [d.get('label', '') for d in data]
-    values = [d.get('value', 0) for d in data]
-    prior_values = [d.get('priorValue', 0) for d in data]
-    has_prior = any(v > 0 for v in prior_values)
-
-    if has_prior:
-        chart.data = [values, prior_values]
-        chart.bars[0].fillColor = PINMETO_BLUE
-        chart.bars[1].fillColor = PINMETO_LIGHT_BLUE
-    else:
-        chart.data = [values]
-        chart.bars[0].fillColor = PINMETO_BLUE
-
-    chart.categoryAxis.categoryNames = labels
-    chart.categoryAxis.labels.fontName = 'Helvetica'
-    chart.categoryAxis.labels.fontSize = 8
-    chart.valueAxis.labels.fontName = 'Helvetica'
-    chart.valueAxis.labels.fontSize = 8
-
-    # Add legend if comparison data exists
-    if has_prior:
-        from reportlab.graphics.charts.legends import Legend
-        legend = Legend()
-        legend.x = width - 80
-        legend.y = height - 5
-        legend.fontName = 'Helvetica'
-        legend.fontSize = 7
-        legend.alignment = 'right'
-        legend.columnMaximum = 1
-        legend.colorNamePairs = [
-            (PINMETO_BLUE, current_legend),
-            (PINMETO_LIGHT_BLUE, prior_legend)
-        ]
-        drawing.add(legend)
-
-    drawing.add(chart)
-    return drawing
-
-
 def create_category_bars(data: list[dict], width=495, palette=None,
                          show_share=True) -> Drawing:
     """Horizontal labelled bars for a part-to-whole breakdown.
@@ -616,7 +659,7 @@ def create_category_bars(data: list[dict], width=495, palette=None,
         y = height - (i + 1) * (bar_height + row_gap) + row_gap
 
         drawing.add(String(0, y + 3, str(item.get('label', '')),
-                           fontSize=9, fontName='Helvetica',
+                           fontSize=9, fontName=FONT_REGULAR,
                            fillColor=INK, textAnchor='start'))
 
         # Recessive track shows the full scale, so a short bar still reads as a
@@ -635,7 +678,7 @@ def create_category_bars(data: list[dict], width=495, palette=None,
         else:
             text = format_metric_value(value)
         drawing.add(String(width, y + 3, text,
-                           fontSize=9, fontName='Helvetica-Bold',
+                           fontSize=9, fontName=FONT_BOLD,
                            fillColor=INK, textAnchor='end'))
 
     return drawing
@@ -683,11 +726,11 @@ def generate_bar_chart_image(data: list[dict], width=450, height=220, current_la
         height_val = bar.get_height()
         ax.text(bar.get_x() + bar.get_width() / 2, height_val,
                 f'{int(height_val):,}', ha='center', va='bottom', fontsize=7,
-                color='#001334', zorder=4)
+                color='#000050', zorder=4)
 
     # Style the chart
     ax.set_xticks(x)
-    ax.set_xticklabels(labels, fontsize=9, color='#001334')
+    ax.set_xticklabels(labels, fontsize=9, color='#000050')
     ax.yaxis.set_major_formatter(plt.FuncFormatter(lambda x, p: format(int(x), ',')))
     ax.tick_params(axis='y', labelsize=8, colors='#5A6472', length=0)
     ax.tick_params(axis='x', length=0)
@@ -704,7 +747,7 @@ def generate_bar_chart_image(data: list[dict], width=450, height=220, current_la
 
     # Add title showing what value is displayed
     if value_name:
-        ax.set_title(value_name, fontsize=10, color='#001334', fontweight='bold', pad=10)
+        ax.set_title(value_name, fontsize=10, color='#000050', fontweight='bold', pad=10)
 
     # Legend below the chart
     ax.legend(loc='upper center', bbox_to_anchor=(0.5, -0.12), ncol=2, fontsize=8, frameon=False)
@@ -865,7 +908,7 @@ def create_kpi_cards(kpis: list, width=500) -> Drawing:
         name = kpi.get('name', '')
         if name:
             drawing.add(String(pad_left, text_top, str(name),
-                               fontSize=8, fontName='Helvetica',
+                               fontSize=8, fontName=FONT_REGULAR,
                                fillColor=INK_MUTED, textAnchor='start'))
 
         # Value: the loudest element, in ink.
@@ -874,17 +917,17 @@ def create_kpi_cards(kpis: list, width=500) -> Drawing:
         value_size = 22 if len(str(value)) <= 7 else 18
         value_baseline = text_top - value_size - 4
         drawing.add(String(pad_left, value_baseline, str(value),
-                           fontSize=value_size, fontName='Helvetica-Bold',
+                           fontSize=value_size, fontName=FONT_BOLD,
                            fillColor=INK, textAnchor='start'))
 
         # Scale rides beside the value, not on the meter track, so the two never
         # collide however wide the tile is.
         if max_value:
             from reportlab.pdfbase.pdfmetrics import stringWidth
-            offset = stringWidth(str(value), 'Helvetica-Bold', value_size)
+            offset = stringWidth(str(value), FONT_BOLD, value_size)
             drawing.add(String(pad_left + offset + 3, value_baseline,
                                f'/ {max_value}', fontSize=9,
-                               fontName='Helvetica', fillColor=INK_MUTED,
+                               fontName=FONT_REGULAR, fillColor=INK_MUTED,
                                textAnchor='start'))
 
         baseline = y + 12
@@ -909,7 +952,7 @@ def create_kpi_cards(kpis: list, width=500) -> Drawing:
             colour = status_color(change)
             _direction_triangle(drawing, pad_left, baseline, direction, colour)
             drawing.add(String(pad_left + 12, baseline, str(change),
-                               fontSize=9, fontName='Helvetica',
+                               fontSize=9, fontName=FONT_REGULAR,
                                fillColor=colour, textAnchor='start'))
 
     return drawing
@@ -973,23 +1016,50 @@ def validate_report_data(data: dict) -> list[str]:
 # =============================================================================
 # Draft Watermark
 # =============================================================================
+DRAFT_WATERMARK_TEXT = "DRAFT - PENDING REVIEW"
+DRAFT_WATERMARK_MAX_SIZE = 60
+DRAFT_WATERMARK_MARGIN = 24
+
+
+def draft_watermark_font_size(page_width, page_height, font_name,
+                              text=DRAFT_WATERMARK_TEXT,
+                              max_size=DRAFT_WATERMARK_MAX_SIZE,
+                              margin=DRAFT_WATERMARK_MARGIN):
+    """Largest size at which the 45-degree watermark still fits on the page.
+
+    Derived from the page rather than hardcoded, because the string's width is a
+    property of the font: at 60pt this text is 783pt wide in Helvetica but 845pt
+    in Montserrat, and the wider one overran the left edge.
+
+    A rotated text block is a rectangle, not a line: width w and line height h
+    both project onto each axis, giving an axis-aligned span of (w + h)*cos(45).
+    Ignoring h leaves the glyph ascenders and descenders hanging off the edge.
+    The shorter page side is the binding constraint.
+    """
+    cos45 = math.cos(math.radians(45))
+    allowed_span = min(page_width, page_height) - 2 * margin
+    # Width and line height per point of font size, so size factors out.
+    width_per_pt = pdfmetrics.stringWidth(text, font_name, 1.0)
+    height_per_pt = 1.2  # conventional line height, covers ascender + descender
+    span_per_pt = (width_per_pt + height_per_pt) * cos45
+    return min(max_size, allowed_span / span_per_pt)
+
+
 def draw_draft_watermark(canvas, doc):
     """Draw a diagonal 'DRAFT - PENDING REVIEW' watermark across the page."""
     canvas.saveState()
 
+    page_width, page_height = doc.pagesize
+    size = draft_watermark_font_size(page_width, page_height, FONT_BOLD)
+
     # Semi-transparent gray text
     canvas.setFillColor(colors.Color(0.7, 0.7, 0.7, alpha=0.4))
-    canvas.setFont('Helvetica-Bold', 60)
+    canvas.setFont(FONT_BOLD, size)
 
-    # Center of the page
-    page_width, page_height = doc.pagesize
-    center_x = page_width / 2
-    center_y = page_height / 2
-
-    # Rotate and draw text at center
-    canvas.translate(center_x, center_y)
+    # Rotate about the page centre and draw the string centred on it
+    canvas.translate(page_width / 2, page_height / 2)
     canvas.rotate(45)
-    canvas.drawCentredString(0, 0, "DRAFT - PENDING REVIEW")
+    canvas.drawCentredString(0, 0, DRAFT_WATERMARK_TEXT)
 
     canvas.restoreState()
 
@@ -1012,7 +1082,7 @@ def header_footer(canvas, doc, report_title: str, logo_path: str = None, company
 
     # Header text (company name + report title)
     header_text = f"{company_name} - {report_title}" if company_name else report_title
-    canvas.setFont('Helvetica', 8)
+    canvas.setFont(FONT_REGULAR, 8)
     canvas.setFillColor(PINMETO_MID_GREY)
     canvas.drawString(50, doc.height + 70, header_text)
 
@@ -1021,7 +1091,7 @@ def header_footer(canvas, doc, report_title: str, logo_path: str = None, company
         canvas.drawImage(logo_path, doc.width - 50, doc.height + 65, width=80, height=25, preserveAspectRatio=True)
 
     # Footer
-    canvas.setFont('Helvetica', 8)
+    canvas.setFont(FONT_REGULAR, 8)
     canvas.setFillColor(PINMETO_MID_GREY)
     canvas.drawString(50, 30, f"Generated: {datetime.now().strftime('%Y-%m-%d')}")
 
@@ -1129,9 +1199,10 @@ def create_executive_summary(data: dict, styles) -> list:
     if structured_highlights:
         # Dynamic label based on report type
         period = data.get('period', '')
-        report_type = detect_report_type(period)
+        report_type = detect_report_type(period, get_period_type(data))
         highlights_label = {
             'yearly': 'Year Highlights',
+            'half-yearly': 'Half-Year Highlights',
             'quarterly': 'Quarter Highlights',
             'monthly': 'Month Highlights'
         }.get(report_type, 'Key Highlights')
@@ -1210,7 +1281,7 @@ def create_metrics_section(data: dict, platform: str, styles, period_info: dict 
     period_info = period_info or {}
     current_period = period_info.get('period', 'Current')
     prior_year_period = period_info.get('priorPeriod', 'Prior Year')
-    report_type = detect_report_type(current_period)
+    report_type = detect_report_type(current_period, get_period_type(data))
 
     # For yearly reports, only show YoY comparison (no quarterly column)
     is_yearly = report_type == 'yearly'
@@ -1225,7 +1296,7 @@ def create_metrics_section(data: dict, platform: str, styles, period_info: dict 
                 table_data.append([
                     metric.get('name', ''),
                     format_metric_value(metric.get('value', '')),
-                    metric.get('yearChange', '') or metric.get('periodChange', '') or metric.get('year_change', 'N/A')
+                    decorate_delta(metric.get('yearChange', '') or metric.get('periodChange', '') or metric.get('year_change', 'N/A'))
                 ])
             table = Table(table_data, colWidths=[180, 120, 190])
         else:
@@ -1240,8 +1311,8 @@ def create_metrics_section(data: dict, platform: str, styles, period_info: dict 
                 table_data.append([
                     metric.get('name', ''),
                     format_metric_value(metric.get('value', '')),
-                    metric.get('periodChange', '') or metric.get('period_change', 'N/A'),
-                    metric.get('yearChange', '') or metric.get('year_change', 'N/A')
+                    decorate_delta(metric.get('periodChange', '') or metric.get('period_change', 'N/A')),
+                    decorate_delta(metric.get('yearChange', '') or metric.get('year_change', 'N/A'))
                 ])
             table = Table(table_data, colWidths=[160, 100, 115, 115])
 
@@ -1265,14 +1336,16 @@ def create_metrics_section(data: dict, platform: str, styles, period_info: dict 
         chart_title = chart_titles.get(platform, 'Monthly Activity')
         chart_image = generate_bar_chart_image(
             chart_data,
-            width=450,
-            height=220,
+            width=PLATFORM_CHART_WIDTH,
+            height=PLATFORM_CHART_HEIGHT,
             current_label=current_period,
             prior_label=prior_year_period,
             value_name=chart_title
         )
         if chart_image:
-            elements.append(Image(chart_image, width=450, height=220))
+            elements.append(Image(chart_image,
+                                  width=PLATFORM_CHART_WIDTH,
+                                  height=PLATFORM_CHART_HEIGHT))
 
     elements.append(PageBreak())
     return elements
@@ -1306,7 +1379,7 @@ def create_keywords_section(data: dict, styles) -> list:
         # Create a style for wrapped table cells
         cell_style = ParagraphStyle(
             'TableCell',
-            fontName='Helvetica',
+            fontName=FONT_REGULAR,
             fontSize=9,
             leading=11,
             textColor=PINMETO_MID_GREY,
@@ -1612,9 +1685,8 @@ def main():
         print(f"Error: Invalid JSON in {args.data}: {e}")
         return 1
 
-    # Add period if not in data
-    if 'period_type' not in data:
-        data['period_type'] = args.period
+    # The explicit --period wins unless the data file already states one.
+    data['periodType'] = get_period_type(data) or args.period
 
     # Generate report with error handling
     try:
