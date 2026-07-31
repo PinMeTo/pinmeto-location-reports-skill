@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-07-31
+
+Brand and CLI correctness release. The skill documented output it never produced: reports had
+never rendered in a brand typeface, Navy was not a brand colour, and `--period` was accepted and
+discarded. Everything below brings the code and the documentation into agreement.
+
+### Added
+
+- **Montserrat bundled in `assets/fonts/`** (Regular, SemiBold, Bold) under the SIL Open Font
+  License. Registered with both ReportLab and matplotlib, so PDF pages and chart images share
+  one typeface and reports render on-brand on machines that never installed Montserrat. A
+  missing or unreadable TTF falls back to Helvetica document-wide with a warning on stderr
+  rather than mixing families or aborting.
+- `references/branding.md` — colours, measured contrast ratios, typography, chart tokens, logo
+  rules, and tone of voice for generated narrative. Includes the Brand Book's text-on-brand
+  ratios: white on Orange measures 2.0:1 and fails even the large-text floor.
+- `periodType` in the report data schema, so a data file can describe its own report type
+  instead of relying on `--period` or on inference from the period label.
+
 ### Fixed
 
 - **`--period` is no longer inert.** Both generators wrote the caller's period type into the data
@@ -31,19 +50,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The PPTX watermark no longer risks wrapping to two lines: at 48pt bold the string slightly
   exceeds its 9in box, so word wrap is disabled and it overflows harmlessly instead.
 
-### Changed
-
-- Platform charts now span the full 495pt text column at 320pt tall, up from 450x220. Chart pages
-  went from 73-79% vertical fill to 87-94% without changing the page count. Narrative pages are
-  left alone deliberately: their whitespace tracks content length, and padding it would be worse
-  than the gap.
-- Reframed SKILL.md's period table, which presented per-period page ranges (8-15, 10-18, 12-20,
-  15-25) as generator characteristics. Page count is driven by which sections have data — a
-  full report runs about 9 pages, and dropping three sections yields 6 — so the ranges were not
-  something the generator could honour. Documented `periodType` in the data schema.
-
-### Fixed (earlier in this release)
-
 - **Navy corrected to `#000050`.** The generators and reference files used `#001334`, which is
   not a PinMeTo colour. Both the Graphic Manual (May 2026) and the Brand Book specify `#000050`.
   The token is now named `NAVY` rather than `BLUE_MARINE` to match the brand's own name for it.
@@ -55,18 +61,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   level, making it a hard requirement that CLAUDE.md omitted. The asymmetry with
   `generate_pptx.py`, which degrades to text charts without matplotlib, is now documented.
 
-### Added
-
-- **Montserrat bundled in `assets/fonts/`** (Regular, SemiBold, Bold) under the SIL Open Font
-  License. Registered with both ReportLab and matplotlib, so PDF pages and chart images share
-  one typeface and reports render on-brand on machines that never installed Montserrat. A
-  missing or unreadable TTF falls back to Helvetica document-wide with a warning on stderr
-  rather than mixing families or aborting.
-- `references/branding.md` — colours, measured contrast ratios, typography, chart tokens, logo
-  rules, and tone of voice for generated narrative. Includes the Brand Book's text-on-brand
-  ratios: white on Orange measures 2.0:1 and fails even the large-text floor.
-
 ### Changed
+
+- Platform charts now span the full 495pt text column at 320pt tall, up from 450x220. Chart pages
+  went from 73-79% vertical fill to 87-94% without changing the page count. Narrative pages are
+  left alone deliberately: their whitespace tracks content length, and padding it would be worse
+  than the gap.
+- Reframed SKILL.md's period table, which presented per-period page ranges (8-15, 10-18, 12-20,
+  15-25) as generator characteristics. Page count is driven by which sections have data — a
+  full report runs about 9 pages, and dropping three sections yields 6 — so the ranges were not
+  something the generator could honour.
 
 - Brand Guidelines moved out of SKILL.md into `references/branding.md`, cutting the body from
   2,094 to ~1,800 words. The generators hardcode every token, so producing a report no longer
@@ -217,7 +221,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Professional branding and layouts
 - Chart generation for analytics data
 
-[Unreleased]: https://github.com/PinMeTo/pinmeto-location-reports-skill/compare/v1.1.0...HEAD
+[Unreleased]: https://github.com/PinMeTo/pinmeto-location-reports-skill/compare/v1.2.0...HEAD
+[1.2.0]: https://github.com/PinMeTo/pinmeto-location-reports-skill/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/PinMeTo/pinmeto-location-reports-skill/compare/v1.0.2...v1.1.0
 [1.0.2]: https://github.com/PinMeTo/pinmeto-location-reports-skill/compare/v1.0.1...v1.0.2
 [1.0.1]: https://github.com/PinMeTo/pinmeto-location-reports-skill/compare/v1.0.0...v1.0.1
