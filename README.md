@@ -67,6 +67,12 @@ cd pinmeto-location-reports && node scripts/check_mcp_parity.js
 
 ## Installation
 
+> **Most people should install the [PinMeTo Locations
+> plugin](https://github.com/PinMeTo/claude-plugins) instead.** It bundles this skill
+> with the MCP server it depends on, in one install, with matching versions. The
+> standalone instructions below are for pairing this skill with an existing desktop
+> extension install.
+
 ### For Claude Desktop & Claude.ai
 
 **[📥 Download Latest Version](https://github.com/PinMeTo/pinmeto-location-reports-skill/releases/latest/download/pinmeto-location-reports.skill)**
