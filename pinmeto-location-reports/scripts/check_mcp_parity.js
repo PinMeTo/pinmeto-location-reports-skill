@@ -20,7 +20,9 @@
  *       --server / PINMETO_MCP_PATH value that does not exist
  *   2 - the server was found but could not be reached or did not respond
  *
- * Credentials are NOT required: tools/list works before any API call.
+ * Credentials must be set (any placeholder values work): the server's constructor
+ * exits on missing config before tools/list is reachable. The MCP call itself
+ * needs no real credentials.
  */
 
 const { spawn } = require('child_process');
