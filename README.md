@@ -145,6 +145,24 @@ This helps Claude recognize that you want to use this specific skill for your re
 
 Ask Claude! It can explain any metric, clarify report sections, or help you understand the data.
 
+## Releasing and plugin updates
+
+Pushing a `vX.Y.Z` tag packages the skill and publishes its GitHub release. After the
+`.skill` asset is uploaded, the workflow notifies
+[`PinMeTo/agent-plugins`](https://github.com/PinMeTo/agent-plugins) to vendor that version
+and update the plugin. Ordinary commits do not trigger a release or plugin update.
+
+Configure the `MARKETPLACE_DISPATCH_TOKEN` Actions secret in this repository with a
+credential that can send `repository_dispatch` events to `PinMeTo/agent-plugins`.
+A fine-grained personal access token needs access to that repository and **Contents:
+write** permission. The default `GITHUB_TOKEN` cannot notify a different repository.
+
+If the secret is missing, the release still succeeds and the workflow emits a warning.
+To sync an existing release, run the **Sync plugin artifacts** workflow in
+`PinMeTo/agent-plugins` with `skill_name=pinmeto-location-reports` and
+`skill_version=X.Y.Z` (without the `v`). Do not rerun the release workflow to retry
+notification, because the release already exists.
+
 ## License
 
 © 2025 PinMeTo AB. All rights reserved.
