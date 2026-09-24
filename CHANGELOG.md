@@ -20,7 +20,8 @@ Maintenance release. No change to the skill's behaviour or its reports.
   artifact never shipped them, but they raised security alerts on this repository. The lockfile
   now matches `package.json` and lists no packages.
 - Releases now notify the `agent-plugins` marketplace so the plugin re-vendors the skill
-  automatically.
+  automatically, when the `MARKETPLACE_DISPATCH_TOKEN` secret is set. Without it the release
+  still publishes and the workflow warns that the marketplace sync must be run manually.
 
 ## [1.2.0] - 2026-07-31
 
