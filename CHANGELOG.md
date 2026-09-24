@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.1] - 2026-09-24
+
+Maintenance release. No change to the skill's behaviour or its reports.
+
+### Fixed
+
+- **Stale `package-lock.json` regenerated.** 1.1.0 removed `chart.js`, `chartjs-node-canvas`, and
+  `pptxgenjs` from `package.json`, but the lockfile still pinned them and their dependency tree.
+  That included `image-size` 1.2.1, which carries two high-severity denial-of-service advisories
+  (GHSA-w3rx-r6r6-pgpr, GHSA-5p2g-fcmc-qvqq). Nothing imported these packages and the `.skill`
+  artifact never shipped them, but they raised security alerts on this repository. The lockfile
+  now matches `package.json` and lists no packages.
+- Releases now notify the `agent-plugins` marketplace so the plugin re-vendors the skill
+  automatically.
+
 ## [1.2.0] - 2026-07-31
 
 Brand and CLI correctness release. The skill documented output it never produced: reports had
@@ -221,7 +236,8 @@ discarded. Everything below brings the code and the documentation into agreement
 - Professional branding and layouts
 - Chart generation for analytics data
 
-[Unreleased]: https://github.com/PinMeTo/pinmeto-location-reports-skill/compare/v1.2.0...HEAD
+[Unreleased]: https://github.com/PinMeTo/pinmeto-location-reports-skill/compare/v1.2.1...HEAD
+[1.2.1]: https://github.com/PinMeTo/pinmeto-location-reports-skill/compare/v1.2.0...v1.2.1
 [1.2.0]: https://github.com/PinMeTo/pinmeto-location-reports-skill/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/PinMeTo/pinmeto-location-reports-skill/compare/v1.0.2...v1.1.0
 [1.0.2]: https://github.com/PinMeTo/pinmeto-location-reports-skill/compare/v1.0.1...v1.0.2
